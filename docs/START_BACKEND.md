@@ -19,7 +19,7 @@ Host: localhost
 Port: 5432
 Database: kra system
 Username: postgres
-Password: 5638
+Password: set in your local .env file
 ```
 
 If the database does not exist yet, run this in pgAdmin while connected as `postgres`:
@@ -30,14 +30,14 @@ CREATE DATABASE "kra system"
   ENCODING 'UTF8';
 ```
 
-These values match the backend defaults in `apps/api/src/main/resources/application.yaml`:
+The backend reads the database password from `DB_PASSWORD`:
 
 ```text
 Host: localhost
 Port: 5432
 Database: kra system
 Username: postgres
-Password: 5638
+Password: DB_PASSWORD
 ```
 
 ## 3. Run Tests

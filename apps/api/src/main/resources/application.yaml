@@ -4,7 +4,7 @@ spring:
   datasource:
     url: "${DB_URL:jdbc:postgresql://localhost:5432/kra system}"
     username: "${DB_USERNAME:postgres}"
-    password: "${DB_PASSWORD:5638}"
+    password: "${DB_PASSWORD}"
   jpa:
     hibernate:
       ddl-auto: validate
@@ -29,3 +29,10 @@ springdoc:
     path: /api/openapi
   swagger-ui:
     path: /api/docs
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET}
+    jwt-ttl-minutes: ${JWT_TTL_MINUTES:60}
+    default-admin-email: ${DEFAULT_ADMIN_EMAIL}
+    default-admin-password: ${DEFAULT_ADMIN_PASSWORD}

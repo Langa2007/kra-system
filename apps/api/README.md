@@ -13,7 +13,7 @@ The local default database settings are:
 ```text
 Database: kra system
 Username: postgres
-Password: 5638
+Password: set in your local environment
 Port: 5432
 ```
 

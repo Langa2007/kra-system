@@ -831,70 +831,70 @@ Implement the core PostgreSQL schema and minimal application security.
 
 ### Scope
 
-- Add Flyway migrations for core system tables.
-- Add taxpayer tables.
-- Add tax return, invoice, customs, WHT, payment, and settlement tables.
-- Add risk, case, evidence, user, role, and audit tables.
-- Implement seed roles.
-- Implement basic JWT authentication for MVP.
-- Implement audit logging foundation.
+- [x] Add Flyway migrations for core system tables.
+- [x] Add taxpayer tables.
+- [x] Add tax return, invoice, customs, WHT, payment, and settlement tables.
+- [x] Add risk, case, evidence, user, role, and audit tables.
+- [x] Implement seed roles.
+- [x] Implement basic JWT authentication for MVP.
+- [x] Implement audit logging foundation.
 
 ### Tech Stack
 
-- PostgreSQL
-- Flyway
-- Spring Data JPA
-- Spring Security
-- JUnit
-- Testcontainers
+- [x] PostgreSQL
+- [x] Flyway
+- [x] Spring Data JPA
+- [x] Spring Security
+- [x] JUnit
+- [x] Testcontainers
 
 ### Database Work
 
 Implement the MVP subset of the canonical schema:
 
-- data_sources
-- ingestion_jobs
-- data_quality_issues
-- taxpayers
-- taxpayer_identifiers
-- taxpayer_relationships
-- tax_obligations
-- tax_returns
-- invoices
-- invoice_lines
-- customs_declarations
-- withholding_certificates
-- payroll_returns
-- payment_transactions
-- settlement_records
-- business_permits
-- properties
-- risk_rules
-- risk_signals
-- risk_scores
-- cases
-- case_events
-- evidence_packs
-- notifications
-- recovery_records
-- app_users
-- roles
-- user_roles
-- audit_logs
+- [x] data_sources
+- [x] ingestion_jobs
+- [x] data_quality_issues
+- [x] taxpayers
+- [x] taxpayer_identifiers
+- [x] taxpayer_relationships
+- [x] tax_obligations
+- [x] tax_returns
+- [x] invoices
+- [x] invoice_lines
+- [x] customs_declarations
+- [x] withholding_certificates
+- [x] payroll_returns
+- [x] payment_transactions
+- [x] settlement_records
+- [x] business_permits
+- [x] properties
+- [x] risk_rules
+- [x] risk_signals
+- [x] risk_scores
+- [x] cases
+- [x] case_events
+- [x] evidence_packs
+- [x] notifications
+- [x] recovery_records
+- [x] app_users
+- [x] roles
+- [x] user_roles
+- [x] audit_logs
 
 ### Testing Gate
 
-- Migration test passes on clean database.
-- Migration rollback strategy is documented.
-- Entity mapping tests pass.
-- Required indexes are present for taxpayer, period, and reference lookups.
-- Authentication tests pass.
-- Authorization tests block unauthorized access.
-- Audit log is written for login and sensitive API access.
+- [x] Migration test passes on clean database.
+- [x] Migration rollback strategy is documented.
+- [x] Entity mapping tests pass.
+- [x] Required indexes are present for taxpayer, period, and reference lookups.
+- [x] Authentication tests pass.
+- [x] Authorization tests block unauthorized access.
+- [x] Audit log is written for login and sensitive API access.
 
 ### Exit Criteria
 
-- The database can support MVP data, risk signals, cases, evidence packs, and audit logs.
+- [x] The database can support MVP data, risk signals, cases, evidence packs, and audit logs.
 
 ## Phase 3: Synthetic Data Generator
 
@@ -2083,4 +2083,3 @@ Do not build everything at once. Build in this order:
 21. Production launch
 
 This sequence keeps the build grounded: data first, intelligence second, workflow third, AI and scale after the product already works.
-

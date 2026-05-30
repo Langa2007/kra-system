@@ -25,7 +25,7 @@ Host: localhost
 Port: 5432
 Database: kra system
 Username: postgres
-Password: 5638
+Password: set in your local .env file
 ```
 
 Redis:

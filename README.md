@@ -58,6 +58,20 @@ python -m ruff check apps/analytics
 python -m pytest apps/analytics
 ```
 
+## Phase 2 Security Baseline
+
+The Phase 2 backend adds the core PostgreSQL schema, Spring Security, JWT login, role-protected APIs, audit logging, and Testcontainers-backed migration tests.
+
+Local MVP admin credentials are read from environment variables:
+
+```text
+DEFAULT_ADMIN_EMAIL
+DEFAULT_ADMIN_PASSWORD
+JWT_SECRET
+```
+
+Phase 2 details and rollback notes are in `docs/PHASE_2_RUNBOOK.md`.
+
 ## Executive Summary
 
 Kenya is actively pushing for stronger domestic revenue mobilization, better tax compliance, digital tax administration, and broader tax base expansion. KRA already operates major digital platforms such as eTIMS and iTax, and the National Treasury's Medium-Term Revenue Strategy for FY 2024/25 to FY 2026/27 emphasizes revenue growth, tax-base expansion, improved compliance, and plugging loopholes.

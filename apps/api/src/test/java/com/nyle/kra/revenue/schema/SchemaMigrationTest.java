@@ -1,0 +1,88 @@
+package com.nyle.kra.revenue.schema;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+
+import com.nyle.kra.revenue.support.PostgresIntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+class SchemaMigrationTest extends PostgresIntegrationTest {
+
+    private static final List<String> PHASE_2_TABLES = List.of(
+            "data_sources",
+            "ingestion_jobs",
+            "data_quality_issues",
+            "taxpayers",
+            "taxpayer_identifiers",
+            "taxpayer_relationships",
+            "tax_obligations",
+            "tax_returns",
+            "invoices",
+            "invoice_lines",
+            "customs_declarations",
+            "withholding_certificates",
+            "payroll_returns",
+            "payment_transactions",
+            "settlement_records",
+            "business_permits",
+            "properties",
+            "risk_rules",
+            "risk_signals",
+            "risk_scores",
+            "cases",
+            "case_events",
+            "evidence_packs",
+            "notifications",
+            "recovery_records",
+            "app_users",
+            "roles",
+            "user_roles",
+            "audit_logs",
+            "auth_credentials"
+    );
+
+    private static final List<String> REQUIRED_INDEXES = List.of(
+            "idx_taxpayers_kra_pin",
+            "idx_taxpayers_registration_number",
+            "idx_taxpayer_identifiers_type_value",
+            "idx_tax_returns_taxpayer_period",
+            "idx_invoices_supplier_pin_date",
+            "idx_risk_signals_taxpayer_period",
+            "idx_cases_taxpayer",
+            "idx_audit_logs_actor_created",
+            "idx_audit_logs_action_created"
+    );
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void cleanDatabaseMigrationCreatesPhaseTwoTablesAndIndexes() {
+        List<String> tables = jdbcTemplate.queryForList("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                """, String.class);
+
+        assertThat(tables).containsAll(PHASE_2_TABLES);
+
+        List<String> indexes = jdbcTemplate.queryForList("""
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                """, String.class);
+
+        assertThat(indexes).containsAll(REQUIRED_INDEXES);
+    }
+
+    @Test
+    void seedRolesArePresent() {
+        List<String> roles = jdbcTemplate.queryForList("SELECT code FROM roles", String.class);
+
+        assertThat(roles)
+                .containsExactlyInAnyOrder("ADMIN", "EXECUTIVE", "OFFICER", "ANALYST", "AUDITOR");
+    }
+}

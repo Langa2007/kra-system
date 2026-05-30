@@ -13,11 +13,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Create CI environment file
+        run: |
+          {
+            echo "POSTGRES_DB=kra system"
+            echo "POSTGRES_USER=postgres"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+          } > .env
+
       - name: Start local dependencies
-        run: docker compose up -d postgres redis
+        run: docker compose up -d --wait postgres redis
 
       - name: Check PostgreSQL
-        run: docker compose exec -T postgres pg_isready -U postgres -d kra_system
+        run: docker compose exec -T postgres pg_isready -U postgres -d "kra system"
 
       - name: Check Redis
         run: docker compose exec -T redis redis-cli ping
