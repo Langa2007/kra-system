@@ -1,0 +1,12 @@
+target/
+node_modules/
+.next/
+dist/
+out/
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+logs/
+.git/
+BUILD_PHASES.md

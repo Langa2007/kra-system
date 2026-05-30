@@ -23,3 +23,9 @@ management:
     web:
       exposure:
         include: health,info
+
+springdoc:
+  api-docs:
+    path: /api/openapi
+  swagger-ui:
+    path: /api/docs

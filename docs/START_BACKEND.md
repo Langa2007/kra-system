@@ -74,8 +74,19 @@ Expected response:
 }
 ```
 
+OpenAPI routes:
+
+```text
+http://localhost:8080/api/openapi
+http://localhost:8080/api/docs
+```
+
 ## Notes
 
 - The first Maven command may take time because dependencies are downloaded.
 - Flyway will run database migrations automatically when the backend starts.
-- Docker is optional because PostgreSQL 16 is already installed and running locally.
+- Docker Compose can start the local PostgreSQL and Redis dependencies:
+
+```powershell
+docker compose up -d postgres redis
+```

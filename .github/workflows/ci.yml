@@ -1,0 +1,89 @@
+name: Phase 1 CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  local-dependencies:
+    name: PostgreSQL and Redis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Start local dependencies
+        run: docker compose up -d postgres redis
+
+      - name: Check PostgreSQL
+        run: docker compose exec -T postgres pg_isready -U postgres -d kra_system
+
+      - name: Check Redis
+        run: docker compose exec -T redis redis-cli ping
+
+  backend:
+    name: Backend API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Test Spring Boot API
+        run: ./mvnw -f apps/api/pom.xml test
+
+  web:
+    name: Next.js Web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install web dependencies
+        run: npm install
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint web app
+        run: npm run lint:web
+
+      - name: Typecheck web app
+        run: npm run test:web
+
+      - name: Build web app
+        run: npm run build:web
+
+  analytics:
+    name: Analytics API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install analytics dependencies
+        run: pip install -r apps/analytics/requirements.txt
+
+      - name: Lint analytics service
+        run: ruff check apps/analytics
+
+      - name: Test analytics service
+        run: pytest apps/analytics

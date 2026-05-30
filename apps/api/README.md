@@ -36,3 +36,10 @@ Health endpoint:
 ```text
 http://localhost:8080/api/health
 ```
+
+OpenAPI endpoints:
+
+```text
+http://localhost:8080/api/openapi
+http://localhost:8080/api/docs
+```

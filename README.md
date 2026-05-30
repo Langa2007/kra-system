@@ -12,6 +12,52 @@ The long-term product name can be changed later, but the working name is:
 
 The idea is not just to build another tax filing system. KRA already has iTax, eTIMS, customs systems, payment channels, and internal compliance processes. The opportunity is to build the intelligence layer that sits across those systems, connects data that currently lives in silos, and converts it into explainable audit leads, voluntary correction prompts, revenue leakage reports, and government-ready dashboards.
 
+## Phase 1 Local Development
+
+The Phase 1 engineering baseline contains:
+
+- `apps/api`: Spring Boot API with health and OpenAPI endpoints.
+- `apps/web`: Next.js dashboard shell for the officer-facing web app.
+- `apps/analytics`: FastAPI analytics service skeleton with health checks.
+- `docker-compose.yml`: PostgreSQL and Redis for local development.
+- `.github/workflows/ci.yml`: CI skeleton for backend, web, and analytics checks.
+
+Start local dependencies:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d postgres redis
+```
+
+Run the services:
+
+```powershell
+.\mvnw.cmd -f apps/api/pom.xml spring-boot:run
+npm install
+npm run dev:web
+pip install -r apps/analytics/requirements.txt
+uvicorn app.main:app --app-dir apps/analytics --reload --port 8090
+```
+
+Service checks:
+
+```text
+Backend health: http://localhost:8080/api/health
+Backend OpenAPI: http://localhost:8080/api/docs
+Web app: http://localhost:3000
+Analytics health: http://localhost:8090/health
+```
+
+Verification commands:
+
+```powershell
+.\mvnw.cmd -f apps/api/pom.xml test
+npm run lint:web
+npm run test:web
+python -m ruff check apps/analytics
+python -m pytest apps/analytics
+```
+
 ## Executive Summary
 
 Kenya is actively pushing for stronger domestic revenue mobilization, better tax compliance, digital tax administration, and broader tax base expansion. KRA already operates major digital platforms such as eTIMS and iTax, and the National Treasury's Medium-Term Revenue Strategy for FY 2024/25 to FY 2026/27 emphasizes revenue growth, tax-base expansion, improved compliance, and plugging loopholes.
@@ -1708,4 +1754,3 @@ It will:
 - Help African governments modernize tax administration.
 
 The long-term goal is to become the trusted intelligence layer between raw government revenue data and real-world revenue recovery.
-
