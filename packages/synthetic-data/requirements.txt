@@ -1,0 +1,4 @@
+Faker==25.9.2
+polars==1.41.2
+pytest==8.3.3
+ruff==0.8.0

@@ -95,3 +95,28 @@ jobs:
 
       - name: Test analytics service
         run: pytest apps/analytics
+
+  synthetic-data:
+    name: Synthetic Data Generator
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install synthetic data dependencies
+        run: pip install -r packages/synthetic-data/requirements.txt
+
+      - name: Lint synthetic data generator
+        run: ruff check packages/synthetic-data
+
+      - name: Test synthetic data contracts
+        run: pytest packages/synthetic-data
+
+      - name: Generate Phase 3 capacity dataset
+        run: python scripts/generate-synthetic-data/generate.py --output data/synthetic/ci --taxpayers 10000 --invoices 200000 --seed 202603 --quiet

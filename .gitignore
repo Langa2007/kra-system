@@ -16,6 +16,9 @@ __pycache__/
 .venv/
 venv/
 
+# Generated synthetic datasets
+data/synthetic/
+
 # IDE
 .idea/
 .vscode/

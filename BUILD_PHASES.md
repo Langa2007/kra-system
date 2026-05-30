@@ -904,59 +904,59 @@ Create realistic synthetic data so the system can be demonstrated before governm
 
 ### Scope
 
-- Generate taxpayers.
-- Generate taxpayer identifiers.
-- Generate tax obligations.
-- Generate eTIMS-like invoices.
-- Generate VAT returns.
-- Generate customs declarations.
-- Generate WHT certificates.
-- Generate payroll returns.
-- Generate business permits.
-- Generate property records.
-- Generate payment transactions.
-- Generate settlement records.
-- Inject known risk scenarios.
+- [x] Generate taxpayers.
+- [x] Generate taxpayer identifiers.
+- [x] Generate tax obligations.
+- [x] Generate eTIMS-like invoices.
+- [x] Generate VAT returns.
+- [x] Generate customs declarations.
+- [x] Generate WHT certificates.
+- [x] Generate payroll returns.
+- [x] Generate business permits.
+- [x] Generate property records.
+- [x] Generate payment transactions.
+- [x] Generate settlement records.
+- [x] Inject known risk scenarios.
 
 ### Tech Stack
 
-- Python
-- Faker
-- Pandas or Polars
-- CSV and JSON output
-- pytest
+- [x] Python
+- [x] Faker
+- [x] Polars
+- [x] CSV and JSON output
+- [x] pytest
 
 ### Database Work
 
-No new tables unless synthetic generation logs are desired.
+- [x] No new tables unless synthetic generation logs are desired.
 
 ### Required Synthetic Scenarios
 
-- VAT output underdeclaration
-- VAT input overclaim
-- Import-to-sales mismatch
-- WHT certificate mismatch
-- PAYE underdeclaration
-- Nil filer issuing invoices
-- Rental income mismatch
-- County permit without matching tax activity
-- Payment collected but not settled
-- Delayed settlement
-- Duplicate payment transaction
+- [x] VAT output underdeclaration
+- [x] VAT input overclaim
+- [x] Import-to-sales mismatch
+- [x] WHT certificate mismatch
+- [x] PAYE underdeclaration
+- [x] Nil filer issuing invoices
+- [x] Rental income mismatch
+- [x] County permit without matching tax activity
+- [x] Payment collected but not settled
+- [x] Delayed settlement
+- [x] Duplicate payment transaction
 
 ### Testing Gate
 
-- Synthetic generator creates repeatable data with a seed.
-- Generated files match expected schemas.
-- Known risk scenarios are present and measurable.
-- At least 10,000 taxpayers can be generated.
-- At least 200,000 invoices can be generated.
-- Data generation completes within an acceptable local runtime.
-- pytest validates all generated data contracts.
+- [x] Synthetic generator creates repeatable data with a seed.
+- [x] Generated files match expected schemas.
+- [x] Known risk scenarios are present and measurable.
+- [x] At least 10,000 taxpayers can be generated.
+- [x] At least 200,000 invoices can be generated.
+- [x] Data generation completes within an acceptable local runtime.
+- [x] pytest validates all generated data contracts.
 
 ### Exit Criteria
 
-- The team can demo the system using synthetic data without touching real taxpayer data.
+- [x] The team can demo the system using synthetic data without touching real taxpayer data.
 
 ## Phase 4: Data Ingestion and Data Quality
 
