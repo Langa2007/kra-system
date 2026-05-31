@@ -12,9 +12,20 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const target = new URL(`/api/${context.params.path.join("/")}`, API_BASE_URL);
   target.search = request.nextUrl.search;
 
-  const headers = new Headers(request.headers);
-  headers.delete("host");
-  headers.delete("connection");
+  const headers = new Headers();
+  const contentType = request.headers.get("content-type");
+  const authorization = request.headers.get("authorization");
+  const accept = request.headers.get("accept");
+
+  if (contentType) {
+    headers.set("content-type", contentType);
+  }
+  if (authorization) {
+    headers.set("authorization", authorization);
+  }
+  if (accept) {
+    headers.set("accept", accept);
+  }
 
   let response: Response;
   try {
