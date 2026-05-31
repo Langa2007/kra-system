@@ -1,0 +1,168 @@
+export type UserSummary = {
+  id: string;
+  email: string;
+  fullName: string;
+  roles: string[];
+};
+
+export type LoginResponse = {
+  tokenType: string;
+  accessToken: string;
+  user: UserSummary;
+};
+
+export type RiskSignal = {
+  id: string;
+  taxpayerId: string;
+  taxpayerPin: string;
+  taxpayerName: string;
+  ruleCode: string;
+  signalType: string;
+  taxHead: string;
+  periodStart: string;
+  periodEnd: string;
+  observedAmount: number;
+  declaredAmount: number;
+  estimatedGap: number;
+  confidenceScore: number;
+  severity: string;
+  explanation: string;
+  evidence: Record<string, unknown>;
+  status: string;
+  createdAt: string;
+};
+
+export type TaxGapRanking = {
+  taxpayerId: string;
+  taxpayerPin: string;
+  taxpayerName: string;
+  periodStart: string;
+  periodEnd: string;
+  score: number;
+  confidenceScore: number;
+  estimatedGap: number;
+  estimatedRecoverableTax: number;
+  estimatedTotalDue: number;
+  mainFactors: Record<string, unknown>;
+};
+
+export type TaxGapSummary = {
+  taxHead: string;
+  signalCount: number;
+  estimatedGap: number;
+  estimatedRecoverableTax: number;
+  averageConfidence: number;
+};
+
+export type CaseRecord = {
+  id: string;
+  caseNumber: string;
+  riskSignalId: string | null;
+  taxpayerId: string;
+  taxpayerPin: string;
+  taxpayerName: string;
+  title: string;
+  caseType: string;
+  priority: string;
+  status: string;
+  estimatedRecoverableAmount: number;
+  assignedTo: string | null;
+  assignedOfficerName: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  closureReason: string | null;
+  assessedAmount: number | null;
+  agreedAmount: number | null;
+  collectedAmount: number | null;
+};
+
+export type CaseEvent = {
+  id: string;
+  caseId: string;
+  eventType: string;
+  note: string;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+};
+
+export type EvidencePack = {
+  id: string;
+  caseId: string;
+  version: number;
+  status: string;
+  fileUri: string | null;
+  content: Record<string, unknown>;
+  generatedAt: string;
+  generatedBy: string | null;
+  generatedByName: string | null;
+};
+
+export type CaseDetail = {
+  detail: CaseRecord;
+  events: CaseEvent[];
+  evidencePacks: EvidencePack[];
+};
+
+export type IngestionJob = {
+  id: string;
+  dataSourceId: string;
+  dataSourceCode: string;
+  dataSourceName: string;
+  fileName: string;
+  targetTable: string;
+  status: string;
+  recordsReceived: number;
+  recordsValid: number;
+  recordsInvalid: number;
+  startedAt: string;
+  completedAt: string | null;
+  errorSummary: string | null;
+};
+
+export type DataSource = {
+  id: string;
+  code: string;
+  name: string;
+  sourceType: string;
+  ownerAgency: string;
+  ingestionMethod: string;
+  schemaVersion: string;
+  active: boolean;
+};
+
+export type RuleDefinition = {
+  code: string;
+  name: string;
+  description: string;
+  taxHead: string;
+  severity: string;
+  active: boolean;
+  thresholdJson: Record<string, unknown>;
+};
+
+export type TaxpayerProfile = {
+  taxpayerId: string;
+  kraPin: string;
+  taxpayerType: string;
+  legalName: string;
+  tradingName: string | null;
+  registrationNumber: string | null;
+  sectorName: string | null;
+  county: string | null;
+  identifiers: Array<{
+    identifierType: string;
+    identifierValue: string;
+    source: string;
+    confidenceScore: number;
+  }>;
+  recordCounts: Record<string, number>;
+  totals: Record<string, number>;
+  relationships: Array<{
+    relatedTaxpayerId: string;
+    relatedPersonName: string;
+    relationshipType: string;
+    source: string;
+    confidenceScore: number;
+  }>;
+};

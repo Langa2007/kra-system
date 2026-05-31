@@ -1271,31 +1271,31 @@ Create the first usable web interface.
 
 ### Scope
 
-- Login.
-- Overview dashboard.
-- Risk queue.
-- Taxpayer search.
-- Taxpayer profile.
-- Case list.
-- Case detail.
-- Evidence pack viewer.
-- Ingestion status.
-- Rule configuration view.
+- [x] Login.
+- [x] Overview dashboard.
+- [x] Risk queue.
+- [x] Taxpayer search.
+- [x] Taxpayer profile.
+- [x] Case list.
+- [x] Case detail.
+- [x] Evidence pack viewer.
+- [x] Ingestion status.
+- [x] Rule configuration view.
 
 ### Tech Stack
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- TanStack Query
-- TanStack Table or AG Grid
-- ECharts or Recharts
-- Playwright
+- [x] Next.js
+- [x] React
+- [x] TypeScript
+- [x] Tailwind CSS
+- [x] TanStack Query
+- [x] TanStack Table or AG Grid
+- [x] ECharts or Recharts
+- [x] Playwright
 
 ### Database Work
 
-No new core tables unless user preferences are needed.
+- [x] No new core tables unless user preferences are needed.
 
 Optional:
 
@@ -1309,17 +1309,17 @@ CREATE TABLE user_preferences (
 
 ### Testing Gate
 
-- Component tests for core UI components.
-- Playwright tests for login, dashboard, taxpayer profile, risk queue, and case workflow.
-- Tables handle large synthetic datasets.
-- Filters and sorting work.
-- Evidence pack is readable.
-- UI access respects user role.
-- No obvious responsive layout breaks.
+- [x] Component tests for core UI components.
+- [x] Playwright tests for login, dashboard, taxpayer profile, risk queue, and case workflow.
+- [x] Tables handle large synthetic datasets.
+- [x] Filters and sorting work.
+- [x] Evidence pack is readable.
+- [x] UI access respects user role.
+- [x] No obvious responsive layout breaks.
 
 ### Exit Criteria
 
-- A non-developer can use the MVP to find a risk, open a case, and view evidence.
+- [ ] A non-developer can use the MVP to find a risk, open a case, and view evidence.
 
 ## Phase 10: Revenue Assurance and Settlement Monitor
 
