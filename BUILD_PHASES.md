@@ -1090,52 +1090,52 @@ Build deterministic compliance checks that produce explainable risk signals.
 
 ### Scope
 
-- Create configurable rule definitions.
-- Implement core tax risk rules.
-- Implement severity and threshold configuration.
-- Store risk signals with evidence.
-- Add rule execution job.
-- Add rule result viewer.
+- [x] Create configurable rule definitions.
+- [x] Implement core tax risk rules.
+- [x] Implement severity and threshold configuration.
+- [x] Store risk signals with evidence.
+- [x] Add rule execution job.
+- [x] Add rule result viewer.
 
 ### Tech Stack
 
-- Spring Boot
-- PostgreSQL JSONB
-- JUnit
-- Testcontainers
+- [x] Spring Boot
+- [x] PostgreSQL JSONB
+- [x] JUnit
+- [x] Testcontainers
 
 ### Database Work
 
 Use:
 
-- risk_rules
-- risk_signals
-- audit_logs
+- [x] risk_rules
+- [x] risk_signals
+- [x] audit_logs
 
 ### First Rules
 
-- VAT output mismatch
-- VAT input mismatch
-- Import-to-sales mismatch
-- WHT certificate mismatch
-- Nil filer issuing invoices
-- PAYE ratio anomaly using simple rule
-- Permit-active but tax-inactive
-- Payment collected but not settled
+- [x] VAT output mismatch
+- [x] VAT input mismatch
+- [x] Import-to-sales mismatch
+- [x] WHT certificate mismatch
+- [x] Nil filer issuing invoices
+- [x] PAYE ratio anomaly using simple rule
+- [x] Permit-active but tax-inactive
+- [x] Payment collected but not settled
 
 ### Testing Gate
 
-- Unit tests for every rule.
-- Integration tests using known synthetic scenarios.
-- Rule thresholds are configurable.
-- Rule outputs include explanation and evidence JSON.
-- Rule execution is idempotent.
-- False positives caused by obvious timing differences are handled where configured.
-- Performance test runs rules over MVP synthetic dataset.
+- [x] Unit tests for every rule.
+- [x] Integration tests using known synthetic scenarios.
+- [x] Rule thresholds are configurable.
+- [x] Rule outputs include explanation and evidence JSON.
+- [x] Rule execution is idempotent.
+- [x] False positives caused by obvious timing differences are handled where configured.
+- [x] Performance test runs rules over MVP synthetic dataset.
 
 ### Exit Criteria
 
-- The system produces explainable risk signals from ingested data.
+- [x] The system produces explainable risk signals from ingested data.
 
 ## Phase 7: Tax Gap Detection Engine
 

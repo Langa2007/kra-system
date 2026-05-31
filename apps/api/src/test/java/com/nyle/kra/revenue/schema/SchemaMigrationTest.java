@@ -62,6 +62,8 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "idx_payment_transactions_payer_pin",
             "idx_business_permits_activity_trgm",
             "idx_risk_signals_taxpayer_period",
+            "idx_risk_signals_deterministic_key",
+            "idx_risk_signals_rule_created",
             "idx_cases_taxpayer",
             "idx_audit_logs_actor_created",
             "idx_audit_logs_action_created"
