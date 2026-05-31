@@ -1145,31 +1145,31 @@ Convert raw risk signals into quantified estimated tax gaps.
 
 ### Scope
 
-- Calculate estimated gap by tax head.
-- Estimate recoverable revenue.
-- Estimate penalty and interest where configuration exists.
-- Group signals by taxpayer and period.
-- Assign confidence levels.
-- Prioritize by materiality.
+- [x] Calculate estimated gap by tax head.
+- [x] Estimate recoverable revenue.
+- [x] Estimate penalty and interest where configuration exists.
+- [x] Group signals by taxpayer and period.
+- [x] Assign confidence levels.
+- [x] Prioritize by materiality.
 
 ### Tech Stack
 
-- Spring Boot
-- PostgreSQL
-- Configurable calculation module
-- JUnit
+- [x] Spring Boot
+- [x] PostgreSQL
+- [x] Configurable calculation module
+- [x] JUnit
 
 ### Database Work
 
 Use:
 
-- risk_signals
-- risk_scores
-- tax_returns
-- invoices
-- customs_declarations
-- withholding_certificates
-- payroll_returns
+- [x] risk_signals
+- [x] risk_scores
+- [x] tax_returns
+- [x] invoices
+- [x] customs_declarations
+- [x] withholding_certificates
+- [x] payroll_returns
 
 Add optional table later:
 
@@ -1190,17 +1190,19 @@ CREATE TABLE tax_gap_estimates (
 );
 ```
 
+- [x] `tax_gap_estimates` added for durable Phase 7 rankings.
+
 ### Testing Gate
 
-- Calculations are tested for every tax gap category.
-- Edge cases are tested: nil returns, credit notes, cancelled invoices, missing records, negative values.
-- Tax gap summaries match underlying risk signals.
-- Ranking by estimated recoverable amount works.
-- Evidence links back to source records.
+- [x] Calculations are tested for every tax gap category.
+- [x] Edge cases are tested: nil returns, credit notes, cancelled invoices, missing records, negative values.
+- [x] Tax gap summaries match underlying risk signals.
+- [x] Ranking by estimated recoverable amount works.
+- [x] Evidence links back to source records.
 
 ### Exit Criteria
 
-- The platform can rank taxpayers by estimated gap, tax head, period, confidence, and recoverable value.
+- [x] The platform can rank taxpayers by estimated gap, tax head, period, confidence, and recoverable value.
 
 ## Phase 8: Case Management and Evidence Packs
 

@@ -32,6 +32,7 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "risk_rules",
             "risk_signals",
             "risk_scores",
+            "tax_gap_estimates",
             "cases",
             "case_events",
             "evidence_packs",
@@ -64,6 +65,10 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "idx_risk_signals_taxpayer_period",
             "idx_risk_signals_deterministic_key",
             "idx_risk_signals_rule_created",
+            "idx_tax_gap_estimates_taxpayer_period",
+            "idx_tax_gap_estimates_tax_head_period",
+            "idx_tax_gap_estimates_recoverable",
+            "idx_risk_scores_taxpayer_period",
             "idx_cases_taxpayer",
             "idx_audit_logs_actor_created",
             "idx_audit_logs_action_created"
