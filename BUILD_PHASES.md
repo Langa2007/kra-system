@@ -1212,56 +1212,56 @@ Turn risk intelligence into officer workflows.
 
 ### Scope
 
-- Create cases from risk signals.
-- Assign officers.
-- Add priority and status workflow.
-- Add case notes and events.
-- Add evidence pack generation.
-- Export evidence pack to PDF and JSON.
-- Track closure reason.
-- Track recovered revenue.
+- [x] Create cases from risk signals.
+- [x] Assign officers.
+- [x] Add priority and status workflow.
+- [x] Add case notes and events.
+- [x] Add evidence pack generation.
+- [x] Export evidence pack to PDF and JSON.
+- [x] Track closure reason.
+- [x] Track recovered revenue.
 
 ### Tech Stack
 
-- Spring Boot
-- PostgreSQL
-- PDF generation library
-- Apache POI for Excel later
-- Object storage later
+- [x] Spring Boot
+- [x] PostgreSQL
+- [x] PDF generation library
+- [x] Apache POI for Excel later
+- [x] Object storage later
 
 ### Database Work
 
 Use:
 
-- cases
-- case_events
-- evidence_packs
-- recovery_records
-- audit_logs
+- [x] cases
+- [x] case_events
+- [x] evidence_packs
+- [x] recovery_records
+- [x] audit_logs
 
 ### APIs
 
-- `POST /api/cases`
-- `GET /api/cases`
-- `GET /api/cases/{id}`
-- `PATCH /api/cases/{id}`
-- `POST /api/cases/{id}/events`
-- `POST /api/cases/{id}/evidence-packs`
-- `GET /api/cases/{id}/evidence-packs/{packId}`
+- [x] `POST /api/cases`
+- [x] `GET /api/cases`
+- [x] `GET /api/cases/{id}`
+- [x] `PATCH /api/cases/{id}`
+- [x] `POST /api/cases/{id}/events`
+- [x] `POST /api/cases/{id}/evidence-packs`
+- [x] `GET /api/cases/{id}/evidence-packs/{packId}`
 
 ### Testing Gate
 
-- Case creation from risk signal works.
-- Officer assignment is permission-controlled.
-- Status transitions are validated.
-- Evidence pack includes taxpayer, period, source records, rule, gap, confidence, and recommendation.
-- PDF export renders correctly.
-- Audit logs capture every case action.
-- Recovery amount is tracked and included in reports.
+- [x] Case creation from risk signal works.
+- [x] Officer assignment is permission-controlled.
+- [x] Status transitions are validated.
+- [x] Evidence pack includes taxpayer, period, source records, rule, gap, confidence, and recommendation.
+- [x] PDF export renders correctly.
+- [x] Audit logs capture every case action.
+- [x] Recovery amount is tracked and included in reports.
 
 ### Exit Criteria
 
-- Officers can move from signal to case to evidence to closure.
+- [x] Officers can move from signal to case to evidence to closure.
 
 ## Phase 9: Officer and Executive Dashboard Frontend
 

@@ -40,6 +40,10 @@ class TaxGapIntegrationTest extends PostgresIntegrationTest {
 
     @BeforeEach
     void cleanDomainRecords() {
+        jdbcTemplate.update("DELETE FROM recovery_records");
+        jdbcTemplate.update("DELETE FROM evidence_packs");
+        jdbcTemplate.update("DELETE FROM case_events");
+        jdbcTemplate.update("DELETE FROM cases");
         jdbcTemplate.update("DELETE FROM risk_scores");
         jdbcTemplate.update("DELETE FROM tax_gap_estimates");
         jdbcTemplate.update("DELETE FROM risk_signals");

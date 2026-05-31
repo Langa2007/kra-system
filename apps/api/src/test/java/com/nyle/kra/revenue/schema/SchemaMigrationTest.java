@@ -70,6 +70,10 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "idx_tax_gap_estimates_recoverable",
             "idx_risk_scores_taxpayer_period",
             "idx_cases_taxpayer",
+            "idx_cases_risk_signal",
+            "idx_case_events_case_created",
+            "idx_evidence_packs_case_version",
+            "idx_recovery_records_case_created",
             "idx_audit_logs_actor_created",
             "idx_audit_logs_action_created"
     );

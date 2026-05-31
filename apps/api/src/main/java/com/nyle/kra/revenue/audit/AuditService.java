@@ -21,6 +21,10 @@ public class AuditService {
     public static final String ENTITY_RESOLUTION_RUN = "ENTITY_RESOLUTION_RUN";
     public static final String RULE_ENGINE_RUN = "RULE_ENGINE_RUN";
     public static final String TAX_GAP_ENGINE_RUN = "TAX_GAP_ENGINE_RUN";
+    public static final String CASE_CREATED = "CASE_CREATED";
+    public static final String CASE_UPDATED = "CASE_UPDATED";
+    public static final String CASE_EVENT_ADDED = "CASE_EVENT_ADDED";
+    public static final String EVIDENCE_PACK_GENERATED = "EVIDENCE_PACK_GENERATED";
 
     private final AuditLogRepository auditLogRepository;
 
