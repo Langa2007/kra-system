@@ -18,6 +18,7 @@ public class AuditService {
     public static final String DATA_SOURCE_REGISTERED = "DATA_SOURCE_REGISTERED";
     public static final String INGESTION_JOB_IMPORTED = "INGESTION_JOB_IMPORTED";
     public static final String INGESTION_JOB_DUPLICATE = "INGESTION_JOB_DUPLICATE";
+    public static final String ENTITY_RESOLUTION_RUN = "ENTITY_RESOLUTION_RUN";
 
     private final AuditLogRepository auditLogRepository;
 

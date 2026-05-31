@@ -1032,55 +1032,55 @@ Build the single taxpayer view and link records across identifiers.
 
 ### Scope
 
-- Match records by KRA PIN.
-- Match records by registration number.
-- Match records by invoice supplier/buyer PIN.
-- Link permits, properties, payments, and customs records to taxpayers.
-- Add fuzzy matching support for business names.
-- Add match confidence.
-- Show linked identifiers in taxpayer profile.
+- [x] Match records by KRA PIN.
+- [x] Match records by registration number.
+- [x] Match records by invoice supplier/buyer PIN.
+- [x] Link permits, properties, payments, and customs records to taxpayers.
+- [x] Add fuzzy matching support for business names.
+- [x] Add match confidence.
+- [x] Show linked identifiers in taxpayer profile.
 
 ### Tech Stack
 
-- Spring Boot
-- PostgreSQL
-- pg_trgm extension for fuzzy matching
-- Optional Python helper for advanced matching
+- [x] Spring Boot
+- [x] PostgreSQL
+- [x] pg_trgm extension for fuzzy matching
+- [x] Optional Python helper for advanced matching (not required for this phase)
 
 ### Database Work
 
 Use:
 
-- taxpayers
-- taxpayer_identifiers
-- taxpayer_relationships
-- invoices
-- tax_returns
-- customs_declarations
-- withholding_certificates
-- business_permits
-- properties
-- payment_transactions
+- [x] taxpayers
+- [x] taxpayer_identifiers
+- [x] taxpayer_relationships
+- [x] invoices
+- [x] tax_returns
+- [x] customs_declarations
+- [x] withholding_certificates
+- [x] business_permits
+- [x] properties
+- [x] payment_transactions
 
 Add indexes:
 
-- taxpayers(kra_pin)
-- taxpayers(registration_number)
-- taxpayer_identifiers(identifier_type, identifier_value)
-- taxpayers using trigram index on legal_name and trading_name
+- [x] taxpayers(kra_pin)
+- [x] taxpayers(registration_number)
+- [x] taxpayer_identifiers(identifier_type, identifier_value)
+- [x] taxpayers using trigram index on legal_name and trading_name
 
 ### Testing Gate
 
-- Exact match tests pass.
-- Fuzzy match tests pass with confidence scores.
-- Low-confidence matches are not auto-linked without review.
-- Duplicate taxpayer detection test passes.
-- Taxpayer profile aggregates records correctly.
-- Entity resolution job is idempotent.
+- [x] Exact match tests pass.
+- [x] Fuzzy match tests pass with confidence scores.
+- [x] Low-confidence matches are not auto-linked without review.
+- [x] Duplicate taxpayer detection test passes.
+- [x] Taxpayer profile aggregates records correctly.
+- [x] Entity resolution job is idempotent.
 
 ### Exit Criteria
 
-- The system can produce a reliable taxpayer profile from fragmented source records.
+- [x] The system can produce a reliable taxpayer profile from fragmented source records.
 
 ## Phase 6: Rule Engine
 
