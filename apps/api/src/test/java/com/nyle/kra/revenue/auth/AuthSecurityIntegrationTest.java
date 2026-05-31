@@ -33,10 +33,12 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void loginIssuesJwtAndWritesAuditLog() throws Exception {
+        long previousLoginCount = auditLogRepository.countByAction(AuditService.LOGIN_SUCCESS);
+
         String token = login();
 
         assertThat(token).isNotBlank();
-        assertThat(auditLogRepository.countByAction(AuditService.LOGIN_SUCCESS)).isEqualTo(1);
+        assertThat(auditLogRepository.countByAction(AuditService.LOGIN_SUCCESS)).isEqualTo(previousLoginCount + 1);
     }
 
     @Test
@@ -47,6 +49,7 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void adminEndpointAllowsJwtAndWritesSensitiveAuditLog() throws Exception {
+        long previousSensitiveAccessCount = auditLogRepository.countByAction(AuditService.SENSITIVE_ACCESS);
         String token = login();
 
         mockMvc.perform(get("/api/admin/security-check")
@@ -55,11 +58,14 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.status").value("AUTHORIZED"))
                 .andExpect(jsonPath("$.actor").value(TEST_ADMIN_EMAIL));
 
-        assertThat(auditLogRepository.countByAction(AuditService.SENSITIVE_ACCESS)).isEqualTo(1);
+        assertThat(auditLogRepository.countByAction(AuditService.SENSITIVE_ACCESS))
+                .isEqualTo(previousSensitiveAccessCount + 1);
     }
 
     @Test
     void loginRejectsBadPasswordAndWritesAuditLog() throws Exception {
+        long previousLoginFailureCount = auditLogRepository.countByAction(AuditService.LOGIN_FAILURE);
+
         mockMvc.perform(post("/api/auth/login")
                         .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
                         .content(Objects.requireNonNull("""
@@ -70,7 +76,7 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
                                 """.formatted(TEST_ADMIN_EMAIL))))
                 .andExpect(status().isUnauthorized());
 
-        assertThat(auditLogRepository.countByAction(AuditService.LOGIN_FAILURE)).isEqualTo(1);
+        assertThat(auditLogRepository.countByAction(AuditService.LOGIN_FAILURE)).isEqualTo(previousLoginFailureCount + 1);
     }
 
     private String login() throws Exception {
