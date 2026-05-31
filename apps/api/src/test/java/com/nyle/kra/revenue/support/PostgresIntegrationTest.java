@@ -19,6 +19,7 @@ public abstract class PostgresIntegrationTest {
     private static final String TEST_POSTGRES_PASSWORD = "test-postgres-" + UUID.randomUUID();
     private static final String TEST_JWT_SECRET = "test-jwt-" + UUID.randomUUID() + UUID.randomUUID();
 
+    @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16")
             .withDatabaseName("phase2_test")
             .withUsername("postgres")

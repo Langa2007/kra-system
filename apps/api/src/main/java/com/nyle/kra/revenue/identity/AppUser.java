@@ -74,6 +74,10 @@ public class AppUser {
         return fullName;
     }
 
+    public String getDepartment() {
+        return department;
+    }
+
     public String getStatus() {
         return status;
     }

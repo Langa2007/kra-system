@@ -74,4 +74,8 @@ public class Taxpayer {
     public String getKraPin() {
         return kraPin;
     }
+
+    public String getCounty() {
+        return county;
+    }
 }

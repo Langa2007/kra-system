@@ -2,6 +2,8 @@ package com.nyle.kra.revenue.schema;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Objects;
+
 import com.nyle.kra.revenue.audit.AuditLogRepository;
 import com.nyle.kra.revenue.identity.AppUser;
 import com.nyle.kra.revenue.identity.AppUserRepository;
@@ -31,7 +33,7 @@ class EntityMappingTest extends PostgresIntegrationTest {
         AppUser admin = appUserRepository.findByEmailIgnoreCase(TEST_ADMIN_EMAIL).orElseThrow();
 
         assertThat(admin.getRoles()).extracting("code").contains("ADMIN");
-        assertThat(authCredentialRepository.existsById(admin.getId())).isTrue();
+        assertThat(authCredentialRepository.existsById(Objects.requireNonNull(admin.getId()))).isTrue();
 
         taxpayerRepository.save(new Taxpayer("P051234567A", "COMPANY", "Phase Two Traders Ltd", "ACTIVE"));
 

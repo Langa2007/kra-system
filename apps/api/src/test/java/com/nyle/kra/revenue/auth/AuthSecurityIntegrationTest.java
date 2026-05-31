@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nyle.kra.revenue.audit.AuditLogRepository;
@@ -59,13 +61,13 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
     @Test
     void loginRejectsBadPasswordAndWritesAuditLog() throws Exception {
         mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull("""
                                 {
                                   "email": "%s",
                                   "password": "wrong-password"
                                 }
-                                """.formatted(TEST_ADMIN_EMAIL)))
+                                """.formatted(TEST_ADMIN_EMAIL))))
                 .andExpect(status().isUnauthorized());
 
         assertThat(auditLogRepository.countByAction(AuditService.LOGIN_FAILURE)).isEqualTo(1);
@@ -73,13 +75,13 @@ class AuthSecurityIntegrationTest extends PostgresIntegrationTest {
 
     private String login() throws Exception {
         String response = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull("""
                                 {
                                   "email": "%s",
                                   "password": "%s"
                                 }
-                                """.formatted(TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD)))
+                                """.formatted(TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andReturn()

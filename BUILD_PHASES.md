@@ -966,63 +966,63 @@ Build the ingestion layer for batch data uploads and validation.
 
 ### Scope
 
-- Upload CSV and JSON files.
-- Register data sources.
-- Map incoming schemas.
-- Validate records.
-- Store valid records.
-- Quarantine invalid records.
-- Track ingestion jobs.
-- Show ingestion status.
-- Show data quality issues.
+- [x] Upload CSV and JSON files.
+- [x] Register data sources.
+- [x] Map incoming schemas.
+- [x] Validate records.
+- [x] Store valid records.
+- [x] Quarantine invalid records.
+- [x] Track ingestion jobs.
+- [x] Show ingestion status.
+- [x] Show data quality issues.
 
 ### Tech Stack
 
-- Spring Boot REST APIs
-- PostgreSQL
-- Spring Batch or custom ingestion services
-- Apache Commons CSV or OpenCSV
-- JSON Schema validation
-- MinIO later for raw file storage
+- [x] Spring Boot REST APIs
+- [x] PostgreSQL
+- [x] Spring Batch or custom ingestion services
+- [x] Apache Commons CSV or OpenCSV
+- [x] JSON Schema validation
+- [x] MinIO later for raw file storage
 
 ### Database Work
 
 Use:
 
-- data_sources
-- ingestion_jobs
-- data_quality_issues
-- all target domain tables
+- [x] data_sources
+- [x] ingestion_jobs
+- [x] data_quality_issues
+- [x] all target domain tables
 
 Add indexes:
 
-- ingestion_jobs(data_source_id, status)
-- data_quality_issues(ingestion_job_id)
-- invoices(source_job_id)
-- tax_returns(source_job_id)
+- [x] ingestion_jobs(data_source_id, status)
+- [x] data_quality_issues(ingestion_job_id)
+- [x] invoices(source_job_id)
+- [x] tax_returns(source_job_id)
 
 ### APIs
 
-- `POST /api/data-sources`
-- `GET /api/data-sources`
-- `POST /api/ingestion/jobs`
-- `GET /api/ingestion/jobs`
-- `GET /api/ingestion/jobs/{id}`
-- `GET /api/ingestion/jobs/{id}/issues`
+- [x] `POST /api/data-sources`
+- [x] `GET /api/data-sources`
+- [x] `POST /api/ingestion/jobs`
+- [x] `GET /api/ingestion/jobs`
+- [x] `GET /api/ingestion/jobs/{id}`
+- [x] `GET /api/ingestion/jobs/{id}/issues`
 
 ### Testing Gate
 
-- Unit tests for validators.
-- Integration tests for each file type.
-- Invalid rows are rejected with clear reasons.
-- Valid rows are persisted correctly.
-- Duplicate file upload behavior is defined and tested.
-- Large file ingestion test passes with synthetic data.
-- Audit logs are written for uploads and imports.
+- [x] Unit tests for validators.
+- [x] Integration tests for each file type.
+- [x] Invalid rows are rejected with clear reasons.
+- [x] Valid rows are persisted correctly.
+- [x] Duplicate file upload behavior is defined and tested.
+- [x] Large file ingestion test passes with synthetic data.
+- [x] Audit logs are written for uploads and imports.
 
 ### Exit Criteria
 
-- The platform can ingest all MVP datasets safely and show data quality results.
+- [x] The platform can ingest all MVP datasets safely and show data quality results.
 
 ## Phase 5: Master Taxpayer and Entity Resolution
 

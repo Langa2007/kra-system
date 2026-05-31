@@ -1,5 +1,7 @@
 package com.nyle.kra.revenue.security;
 
+import java.util.Objects;
+
 import com.nyle.kra.revenue.identity.AppUser;
 import com.nyle.kra.revenue.identity.AppUserRepository;
 import com.nyle.kra.revenue.identity.AuthCredential;
@@ -52,7 +54,7 @@ public class DefaultAdminSeeder implements ApplicationRunner {
         admin.addRole(adminRole);
         AppUser savedAdmin = appUserRepository.save(admin);
 
-        if (!authCredentialRepository.existsById(savedAdmin.getId())) {
+        if (!authCredentialRepository.existsById(Objects.requireNonNull(savedAdmin.getId()))) {
             authCredentialRepository.save(new AuthCredential(
                     savedAdmin,
                     passwordEncoder.encode(securityProperties.defaultAdminPassword())

@@ -2,6 +2,7 @@ package com.nyle.kra.revenue.auth;
 
 import java.util.Optional;
 import java.util.Map;
+import java.util.Objects;
 
 import com.nyle.kra.revenue.audit.AuditService;
 import com.nyle.kra.revenue.identity.AppUser;
@@ -59,15 +60,29 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        AuthCredential credential = authCredentialRepository.findById(user.get().getId())
+        AuthCredential credential = authCredentialRepository.findById(Objects.requireNonNull(user.get().getId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
         if (!passwordEncoder.matches(loginRequest.password(), credential.getPasswordHash())) {
-            auditService.record(AuditService.LOGIN_FAILURE, user, "app_users", user.get().getId(), request, Map.of());
+            auditService.record(
+                    AuditService.LOGIN_FAILURE,
+                    user,
+                    "app_users",
+                    Objects.requireNonNull(user.get().getId()),
+                    request,
+                    Map.of()
+            );
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        auditService.record(AuditService.LOGIN_SUCCESS, user, "app_users", user.get().getId(), request, Map.of());
+        auditService.record(
+                AuditService.LOGIN_SUCCESS,
+                user,
+                "app_users",
+                Objects.requireNonNull(user.get().getId()),
+                request,
+                Map.of()
+        );
 
         return new LoginResponse(
                 "Bearer",
