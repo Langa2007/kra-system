@@ -1393,12 +1393,12 @@ Support taxpayer correction before formal enforcement.
 
 ### Scope
 
-- Notification templates.
-- Nudge generation from cases or risk signals.
-- Email/SMS adapter interfaces.
-- Notification status tracking.
-- Taxpayer response placeholder.
-- Officer review of communication history.
+- [x] Notification templates.
+- [x] Nudge generation from cases or risk signals.
+- [x] Email/SMS adapter interfaces.
+- [x] Notification status tracking.
+- [x] Taxpayer response placeholder.
+- [x] Officer review of communication history.
 
 ### Tech Stack
 
@@ -1434,16 +1434,16 @@ CREATE TABLE notification_templates (
 
 ### Testing Gate
 
-- Template rendering tests pass.
-- Notifications are linked to risk signals or cases.
-- Failed notifications are retried or marked clearly.
-- Sensitive data is not exposed unnecessarily.
-- Officer permissions are enforced.
-- Audit logs capture every sent message.
+- [x] Template rendering tests pass.
+- [x] Notifications are linked to risk signals or cases.
+- [x] Failed notifications are retried or marked clearly.
+- [x] Sensitive data is not exposed unnecessarily.
+- [x] Officer permissions are enforced.
+- [x] Audit logs capture every sent message.
 
 ### Exit Criteria
 
-- The system can support voluntary correction workflows.
+- [x] The system can support voluntary correction workflows.
 
 ## Phase 12: Machine Learning Risk Scoring
 

@@ -3,6 +3,8 @@ import type {
   CaseRecord,
   DataSource,
   IngestionJob,
+  NotificationRecord,
+  NotificationTemplate,
   ReconciliationResult,
   ReconciliationSummary,
   RiskSignal,
@@ -385,6 +387,85 @@ export const demoReconciliationResults: ReconciliationResult[] = [
     settlementStatus: "WRONG_ACCOUNT",
     transactionCount: 211,
     varianceAmount: 0,
+  },
+];
+
+export const demoNotificationTemplates: NotificationTemplate[] = [
+  {
+    active: true,
+    bodyTemplate:
+      "Dear {{taxpayerName}}, KRA has noted a possible compliance variance under {{ruleCode}} for {{periodStart}} to {{periodEnd}}. Please review and correct any return differences before formal case escalation.",
+    channel: "EMAIL",
+    code: "SOFT_COMPLIANCE_EMAIL",
+    createdAt: "2026-06-01T08:00:00Z",
+    id: "template-soft-email",
+    subjectTemplate: "Voluntary compliance review for {{taxpayerName}}",
+    updatedAt: "2026-06-01T08:00:00Z",
+  },
+  {
+    active: true,
+    bodyTemplate:
+      "KRA notice: please review {{ruleCode}} variance for {{periodStart}} to {{periodEnd}} and correct any differences voluntarily.",
+    channel: "SMS",
+    code: "SOFT_COMPLIANCE_SMS",
+    createdAt: "2026-06-01T08:00:00Z",
+    id: "template-soft-sms",
+    subjectTemplate: null,
+    updatedAt: "2026-06-01T08:00:00Z",
+  },
+  {
+    active: true,
+    bodyTemplate:
+      "Dear {{taxpayerName}}, case {{caseNumber}} requires your response on the observed {{ruleCode}} variance. Please submit supporting documents or a correction plan.",
+    channel: "EMAIL",
+    code: "CASE_FOLLOW_UP_EMAIL",
+    createdAt: "2026-06-01T08:00:00Z",
+    id: "template-case-email",
+    subjectTemplate: "KRA case follow-up {{caseNumber}}",
+    updatedAt: "2026-06-01T08:00:00Z",
+  },
+];
+
+export const demoNotifications: NotificationRecord[] = [
+  {
+    caseId: "case-001",
+    channel: "EMAIL",
+    createdAt: "2026-06-01T08:10:00Z",
+    deliveryProvider: "LOCAL_EMAIL",
+    deliveryReference: "email-demo-notification-001",
+    id: "demo-notification-001",
+    messageBody:
+      "Dear Amani Wholesale Traders, case CASE-20260531-001 requires your response on the observed VAT_OUTPUT_MISMATCH variance. Please submit supporting documents or a correction plan.",
+    recipient: "p051234567a@example.test",
+    responseBody: null,
+    responseStatus: null,
+    riskSignalId: "signal-vat-001",
+    sentAt: "2026-06-01T08:10:00Z",
+    status: "SENT",
+    subject: "KRA case follow-up CASE-20260531-001",
+    taxpayerId: "taxpayer-amani",
+    templateCode: "CASE_FOLLOW_UP_EMAIL",
+    updatedAt: "2026-06-01T08:10:00Z",
+  },
+  {
+    caseId: "case-002",
+    channel: "SMS",
+    createdAt: "2026-06-01T08:20:00Z",
+    deliveryProvider: "LOCAL_SMS",
+    deliveryReference: "sms-demo-notification-002",
+    id: "demo-notification-002",
+    messageBody:
+      "KRA notice: please review SETTLEMENT_VARIANCE variance for 2026-05-01 to 2026-05-20 and correct any differences voluntarily.",
+    recipient: "+254700000000",
+    responseBody: "Settlement documents submitted for review.",
+    responseStatus: "DOCUMENTS_SUBMITTED",
+    riskSignalId: "signal-settlement-003",
+    sentAt: "2026-06-01T08:20:00Z",
+    status: "RESPONDED",
+    subject: null,
+    taxpayerId: "taxpayer-kisumu",
+    templateCode: "SOFT_COMPLIANCE_SMS",
+    updatedAt: "2026-06-01T08:40:00Z",
   },
 ];
 

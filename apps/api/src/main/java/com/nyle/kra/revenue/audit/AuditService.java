@@ -25,6 +25,8 @@ public class AuditService {
     public static final String CASE_UPDATED = "CASE_UPDATED";
     public static final String CASE_EVENT_ADDED = "CASE_EVENT_ADDED";
     public static final String EVIDENCE_PACK_GENERATED = "EVIDENCE_PACK_GENERATED";
+    public static final String NOTIFICATION_SENT = "NOTIFICATION_SENT";
+    public static final String TAXPAYER_RESPONSE_RECORDED = "TAXPAYER_RESPONSE_RECORDED";
 
     private final AuditLogRepository auditLogRepository;
 

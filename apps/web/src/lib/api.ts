@@ -5,6 +5,8 @@ import type {
   DataSource,
   IngestionJob,
   LoginResponse,
+  NotificationRecord,
+  NotificationTemplate,
   ReconciliationResult,
   ReconciliationRun,
   ReconciliationSummary,
@@ -173,6 +175,43 @@ export function runReconciliation(token: string) {
 
 export function openReconciliationCase(token: string, resultId: string) {
   return request<CaseRecord>(`/reconciliation/results/${resultId}/case`, {
+    method: "POST",
+    token,
+  });
+}
+
+export function getNotificationTemplates(token: string | null) {
+  return request<NotificationTemplate[]>("/notifications/templates", { token });
+}
+
+export function getNotifications(token: string | null) {
+  return request<NotificationRecord[]>("/notifications?limit=100", { token });
+}
+
+export function sendCaseNudge(token: string, caseId: string, channel: string) {
+  return request<NotificationRecord>("/notifications/nudges", {
+    body: { caseId, channel },
+    method: "POST",
+    token,
+  });
+}
+
+export function sendRiskNudge(token: string, riskSignalId: string, channel: string) {
+  return request<NotificationRecord>("/notifications/nudges", {
+    body: { channel, riskSignalId },
+    method: "POST",
+    token,
+  });
+}
+
+export function recordNotificationResponse(
+  token: string,
+  notificationId: string,
+  responseStatus: string,
+  responseBody: string,
+) {
+  return request<NotificationRecord>(`/notifications/${notificationId}/response`, {
+    body: { responseBody, responseStatus },
     method: "POST",
     token,
   });

@@ -38,6 +38,7 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "case_events",
             "evidence_packs",
             "notifications",
+            "notification_templates",
             "recovery_records",
             "app_users",
             "roles",
@@ -78,6 +79,10 @@ class SchemaMigrationTest extends PostgresIntegrationTest {
             "idx_case_events_case_created",
             "idx_evidence_packs_case_version",
             "idx_recovery_records_case_created",
+            "idx_notifications_case_created",
+            "idx_notifications_risk_signal_created",
+            "idx_notifications_taxpayer_created",
+            "idx_notification_templates_active",
             "idx_audit_logs_actor_created",
             "idx_audit_logs_action_created"
     );

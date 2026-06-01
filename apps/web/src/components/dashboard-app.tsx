@@ -24,7 +24,10 @@ import {
   Lock,
   LogIn,
   LogOut,
+  Mail,
+  MessageSquareReply,
   Search,
+  Send,
   Settings2,
   ShieldCheck,
   UserRoundSearch,
@@ -41,6 +44,8 @@ import {
   getCases,
   getDataSources,
   getIngestionJobs,
+  getNotificationTemplates,
+  getNotifications,
   getReconciliationResults,
   getReconciliationSummary,
   getRiskSignals,
@@ -51,13 +56,18 @@ import {
   getMe,
   login,
   openReconciliationCase,
+  recordNotificationResponse,
   runReconciliation,
+  sendCaseNudge,
+  sendRiskNudge,
 } from "@/lib/api";
 import {
   demoCaseDetail,
   demoCases,
   demoDataSources,
   demoIngestionJobs,
+  demoNotificationTemplates,
+  demoNotifications,
   demoProfile,
   demoRanking,
   demoReconciliationResults,
@@ -72,6 +82,8 @@ import type {
   CaseRecord,
   DataSource,
   IngestionJob,
+  NotificationRecord,
+  NotificationTemplate,
   ReconciliationResult,
   ReconciliationSummary,
   RiskSignal,
@@ -89,6 +101,7 @@ type ViewKey =
   | "cases"
   | "evidence"
   | "settlements"
+  | "notifications"
   | "ingestion"
   | "rules";
 
@@ -99,6 +112,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: BriefcaseBusiness, key: "cases", label: "Cases" },
   { icon: FileJson, key: "evidence", label: "Evidence" },
   { icon: BadgeCheck, key: "settlements", label: "Settlements" },
+  { icon: Mail, key: "notifications", label: "Nudges" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
 ];
@@ -182,6 +196,8 @@ export function DashboardApp() {
   const [selectedCaseId, setSelectedCaseId] = useState<string>(demoCases[0].id);
   const [selectedSignalId, setSelectedSignalId] = useState<string>(demoSignals[0].id);
   const [note, setNote] = useState("");
+  const [responseStatus, setResponseStatus] = useState("DOCUMENTS_SUBMITTED");
+  const [responseBody, setResponseBody] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -238,6 +254,18 @@ export function DashboardApp() {
     token,
     getReconciliationResults,
     demoReconciliationResults,
+  );
+  const notificationTemplatesQuery = useAuthedQuery(
+    ["notification-templates", token],
+    token,
+    getNotificationTemplates,
+    demoNotificationTemplates,
+  );
+  const notificationsQuery = useAuthedQuery(
+    ["notifications", token],
+    token,
+    getNotifications,
+    demoNotifications,
   );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
@@ -316,6 +344,8 @@ export function DashboardApp() {
       rulesQuery.error,
       reconciliationSummaryQuery.error,
       reconciliationResultsQuery.error,
+      notificationTemplatesQuery.error,
+      notificationsQuery.error,
     ].some((error) => error instanceof ApiError && [401, 403].includes(error.status));
 
     if (!authError) {
@@ -332,6 +362,8 @@ export function DashboardApp() {
     casesQuery.error,
     dataSourcesQuery.error,
     ingestionQuery.error,
+    notificationTemplatesQuery.error,
+    notificationsQuery.error,
     queryClient,
     rankingQuery.error,
     reconciliationResultsQuery.error,
@@ -407,6 +439,43 @@ export function DashboardApp() {
       queryClient.invalidateQueries({ queryKey: ["cases", token] });
       queryClient.invalidateQueries({ queryKey: ["reconciliation-results", token] });
       setToast(`Settlement case ${record.caseNumber} opened`);
+    },
+  });
+
+  const caseNudgeMutation = useMutation({
+    mutationFn: (channel: string) => sendCaseNudge(token as string, selectedCaseId, channel),
+    onSuccess: (record) => {
+      queryClient.setQueryData<NotificationRecord[]>(["notifications", token], (current) => [
+        record,
+        ...(current ?? []).filter((existing) => existing.id !== record.id),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["notifications", token] });
+      setToast(`${record.channel} nudge sent for ${selectedCase?.caseNumber ?? "case"}`);
+    },
+  });
+
+  const riskNudgeMutation = useMutation({
+    mutationFn: (channel: string) => sendRiskNudge(token as string, selectedSignalId, channel),
+    onSuccess: (record) => {
+      queryClient.setQueryData<NotificationRecord[]>(["notifications", token], (current) => [
+        record,
+        ...(current ?? []).filter((existing) => existing.id !== record.id),
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["notifications", token] });
+      setToast(`${record.channel} nudge sent for ${selectedSignal?.ruleCode ?? "risk signal"}`);
+    },
+  });
+
+  const responseMutation = useMutation({
+    mutationFn: (notificationId: string) =>
+      recordNotificationResponse(token as string, notificationId, responseStatus, responseBody),
+    onSuccess: (record) => {
+      setResponseBody("");
+      queryClient.setQueryData<NotificationRecord[]>(["notifications", token], (current) =>
+        (current ?? []).map((existing) => (existing.id === record.id ? record : existing)),
+      );
+      queryClient.invalidateQueries({ queryKey: ["notifications", token] });
+      setToast("Taxpayer response recorded");
     },
   });
 
@@ -612,6 +681,48 @@ export function DashboardApp() {
               }}
               results={reconciliationResultsQuery.data}
               summary={reconciliationSummaryQuery.data}
+            />
+          ) : null}
+
+          {activeView === "notifications" ? (
+            <NotificationView
+              cases={cases}
+              isCasePending={caseNudgeMutation.isPending}
+              isResponsePending={responseMutation.isPending}
+              isRiskPending={riskNudgeMutation.isPending}
+              notifications={notificationsQuery.data}
+              onRecordResponse={(notificationId) => {
+                if (token && responseBody.trim()) {
+                  responseMutation.mutate(notificationId);
+                } else if (responseBody.trim()) {
+                  setResponseBody("");
+                  setToast("Demo taxpayer response previewed");
+                }
+              }}
+              onResponseBody={setResponseBody}
+              onResponseStatus={setResponseStatus}
+              onSelectCase={setSelectedCaseId}
+              onSelectSignal={setSelectedSignalId}
+              onSendCaseNudge={(channel) => {
+                if (token) {
+                  caseNudgeMutation.mutate(channel);
+                } else {
+                  setToast(`Demo ${channel} case nudge previewed`);
+                }
+              }}
+              onSendRiskNudge={(channel) => {
+                if (token) {
+                  riskNudgeMutation.mutate(channel);
+                } else {
+                  setToast(`Demo ${channel} risk nudge previewed`);
+                }
+              }}
+              responseBody={responseBody}
+              responseStatus={responseStatus}
+              riskSignals={riskSignals}
+              selectedCaseId={selectedCase?.id}
+              selectedSignalId={selectedSignal?.id}
+              templates={notificationTemplatesQuery.data}
             />
           ) : null}
 
@@ -1358,6 +1469,282 @@ function SettlementView({
         <DataTable columns={columns} data={results} filter="" />
       </Section>
     </div>
+  );
+}
+
+function NotificationView({
+  cases,
+  isCasePending,
+  isResponsePending,
+  isRiskPending,
+  notifications,
+  onRecordResponse,
+  onResponseBody,
+  onResponseStatus,
+  onSelectCase,
+  onSelectSignal,
+  onSendCaseNudge,
+  onSendRiskNudge,
+  responseBody,
+  responseStatus,
+  riskSignals,
+  selectedCaseId,
+  selectedSignalId,
+  templates,
+}: {
+  cases: CaseRecord[];
+  isCasePending: boolean;
+  isResponsePending: boolean;
+  isRiskPending: boolean;
+  notifications: NotificationRecord[];
+  onRecordResponse: (notificationId: string) => void;
+  onResponseBody: (value: string) => void;
+  onResponseStatus: (value: string) => void;
+  onSelectCase: (caseId: string) => void;
+  onSelectSignal: (signalId: string) => void;
+  onSendCaseNudge: (channel: string) => void;
+  onSendRiskNudge: (channel: string) => void;
+  responseBody: string;
+  responseStatus: string;
+  riskSignals: RiskSignal[];
+  selectedCaseId?: string;
+  selectedSignalId?: string;
+  templates: NotificationTemplate[];
+}) {
+  const sortedNotifications = useMemo(
+    () =>
+      [...notifications].sort(
+        (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+      ),
+    [notifications],
+  );
+  const [selectedNotificationId, setSelectedNotificationId] = useState(
+    sortedNotifications[0]?.id ?? "",
+  );
+  const selectedNotification =
+    sortedNotifications.find((record) => record.id === selectedNotificationId) ??
+    sortedNotifications[0];
+
+  useEffect(() => {
+    if (!sortedNotifications.length) {
+      setSelectedNotificationId("");
+      return;
+    }
+
+    if (!sortedNotifications.some((record) => record.id === selectedNotificationId)) {
+      setSelectedNotificationId(sortedNotifications[0].id);
+    }
+  }, [selectedNotificationId, sortedNotifications]);
+
+  const columns = useMemo<ColumnDef<NotificationRecord>[]>(
+    () => [
+      {
+        accessorKey: "createdAt",
+        cell: ({ row }) => shortDate(row.original.createdAt),
+        header: "Sent",
+      },
+      {
+        accessorKey: "channel",
+        cell: ({ row }) => <Badge value={row.original.channel} />,
+        header: "Channel",
+      },
+      { accessorKey: "templateCode", header: "Template" },
+      { accessorKey: "recipient", header: "Recipient" },
+      {
+        accessorKey: "status",
+        cell: ({ row }) => <Badge value={row.original.status} />,
+        header: "Status",
+      },
+      {
+        accessorKey: "responseStatus",
+        cell: ({ row }) => row.original.responseStatus ?? "-",
+        header: "Response",
+      },
+    ],
+    [],
+  );
+
+  return (
+    <div className="grid min-w-0 gap-5">
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Generate Nudge">
+          <div className="grid gap-4">
+            <label className="grid gap-2 text-sm font-semibold" htmlFor="nudge-case">
+              Case
+              <select
+                className="min-h-11 rounded-md border border-line bg-white px-3 text-sm"
+                id="nudge-case"
+                onChange={(event) => onSelectCase(event.target.value)}
+                value={selectedCaseId ?? ""}
+              >
+                {cases.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.caseNumber} / {record.taxpayerName ?? "Public revenue channel"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <NudgeButton
+                channel="EMAIL"
+                disabled={isCasePending}
+                icon={<Mail size={17} aria-hidden="true" />}
+                isPending={isCasePending}
+                onClick={onSendCaseNudge}
+              />
+              <NudgeButton
+                channel="SMS"
+                disabled={isCasePending}
+                icon={<Send size={17} aria-hidden="true" />}
+                isPending={isCasePending}
+                onClick={onSendCaseNudge}
+              />
+            </div>
+            <label className="grid gap-2 text-sm font-semibold" htmlFor="nudge-signal">
+              Risk signal
+              <select
+                className="min-h-11 rounded-md border border-line bg-white px-3 text-sm"
+                id="nudge-signal"
+                onChange={(event) => onSelectSignal(event.target.value)}
+                value={selectedSignalId ?? ""}
+              >
+                {riskSignals.map((signal) => (
+                  <option key={signal.id} value={signal.id}>
+                    {signal.ruleCode} / {signal.taxpayerName ?? "Public revenue channel"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <NudgeButton
+                channel="EMAIL"
+                disabled={isRiskPending}
+                icon={<Mail size={17} aria-hidden="true" />}
+                isPending={isRiskPending}
+                onClick={onSendRiskNudge}
+              />
+              <NudgeButton
+                channel="SMS"
+                disabled={isRiskPending}
+                icon={<Send size={17} aria-hidden="true" />}
+                isPending={isRiskPending}
+                onClick={onSendRiskNudge}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Taxpayer Response">
+          <div className="grid gap-3">
+            <label className="grid gap-2 text-sm font-semibold" htmlFor="response-notification">
+              Notification
+              <select
+                className="min-h-11 rounded-md border border-line bg-white px-3 text-sm"
+                disabled={!sortedNotifications.length}
+                id="response-notification"
+                onChange={(event) => setSelectedNotificationId(event.target.value)}
+                value={selectedNotification?.id ?? ""}
+              >
+                {sortedNotifications.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    {record.templateCode} / {record.recipient}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold" htmlFor="response-status">
+              Response status
+              <select
+                className="min-h-11 rounded-md border border-line bg-white px-3 text-sm"
+                id="response-status"
+                onChange={(event) => onResponseStatus(event.target.value)}
+                value={responseStatus}
+              >
+                <option value="DOCUMENTS_SUBMITTED">Documents submitted</option>
+                <option value="RETURN_AMENDED">Return amended</option>
+                <option value="PAYMENT_PLAN_REQUESTED">Payment plan requested</option>
+                <option value="DISPUTED">Disputed</option>
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-semibold" htmlFor="response-body">
+              Response note
+              <textarea
+                className="min-h-24 rounded-md border border-line bg-white p-3 text-sm"
+                id="response-body"
+                onChange={(event) => onResponseBody(event.target.value)}
+                value={responseBody}
+              />
+            </label>
+            <button
+              className="inline-flex min-h-11 w-fit items-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white hover:bg-[#1d4a40] disabled:opacity-50"
+              disabled={isResponsePending || !selectedNotification || !responseBody.trim()}
+              onClick={() => selectedNotification && onRecordResponse(selectedNotification.id)}
+              type="button"
+            >
+              {isResponsePending ? (
+                <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+              ) : (
+                <MessageSquareReply size={17} aria-hidden="true" />
+              )}
+              Record response
+            </button>
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Template Library">
+        <div className="grid gap-3 md:grid-cols-3">
+          {templates.map((template) => (
+            <article
+              className="rounded-md border border-line bg-white p-4 shadow-panel"
+              key={template.id}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold">{template.code}</h3>
+                <Badge value={template.channel} />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-gray-700">{template.bodyTemplate}</p>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Communication History">
+        <DataTable
+          columns={columns}
+          data={sortedNotifications}
+          filter=""
+          getRowClass={(row) => (row.id === selectedNotification?.id ? "bg-authority/5" : "")}
+          onRowClick={(row) => setSelectedNotificationId(row.id)}
+        />
+      </Section>
+    </div>
+  );
+}
+
+function NudgeButton({
+  channel,
+  disabled,
+  icon,
+  isPending,
+  onClick,
+}: {
+  channel: string;
+  disabled: boolean;
+  icon: ReactNode;
+  isPending: boolean;
+  onClick: (channel: string) => void;
+}) {
+  return (
+    <button
+      className="inline-flex min-h-11 items-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white hover:bg-[#1d4a40] disabled:opacity-50"
+      disabled={disabled}
+      onClick={() => onClick(channel)}
+      type="button"
+    >
+      {isPending ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : icon}
+      {channel}
+    </button>
   );
 }
 

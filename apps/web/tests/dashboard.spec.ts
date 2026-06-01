@@ -106,6 +106,23 @@ test("shows settlement reconciliation scope", async ({ page }) => {
   await expect(page.getByText("Exception Report")).toBeVisible();
 });
 
+test("supports voluntary compliance nudges in demo mode", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByTestId("nav-notifications").click();
+  await expect(page.getByRole("heading", { name: "Generate Nudge" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Communication History" })).toBeVisible();
+  await expect(page.getByText("SOFT_COMPLIANCE_EMAIL")).toBeVisible();
+
+  await page.locator("#nudge-case").selectOption("case-002");
+  await page.getByRole("button", { name: "EMAIL" }).first().click();
+  await expect(page.getByText("Demo EMAIL case nudge previewed")).toBeVisible();
+
+  await page.getByLabel("Response note").fill("Return amended and payment plan requested.");
+  await page.getByRole("button", { name: "Record response" }).click();
+  await expect(page.getByText("Demo taxpayer response previewed")).toBeVisible();
+});
+
 test("handles a large synthetic risk queue with filtering", async ({ page }) => {
   const syntheticSignals = Array.from({ length: 200 }, (_, index) => ({
     confidenceScore: 80 + (index % 15),
@@ -128,25 +145,48 @@ test("handles a large synthetic risk queue with filtering", async ({ page }) => 
     taxpayerPin: `P${String(index).padStart(9, "0")}Z`,
   }));
 
-  await page.route("**/api/backend/auth/login", async (route) => {
+  await page.route("**/api/backend/**", async (route) => {
+    const url = route.request().url();
+    const body = (() => {
+      if (url.includes("/auth/login")) {
+        return {
+          accessToken: "load-test-token",
+          tokenType: "Bearer",
+          user: {
+            email: "admin@example.test",
+            fullName: "Admin User",
+            id: "admin-1",
+            roles: ["ADMIN"],
+          },
+        };
+      }
+      if (url.includes("/rules/signals")) {
+        return syntheticSignals;
+      }
+      if (url.includes("/tax-gaps/summary")) {
+        return [];
+      }
+      if (url.includes("/reconciliation/summary")) {
+        return {
+          delayedCount: 0,
+          duplicateCount: 0,
+          exceptionCount: 0,
+          expectedAmount: 0,
+          missingCount: 0,
+          resultCount: 0,
+          settledAmount: 0,
+          varianceAmount: 0,
+          wrongAccountCount: 0,
+        };
+      }
+      if (url.includes("/notifications/templates")) {
+        return [];
+      }
+      return [];
+    })();
+
     await route.fulfill({
-      body: JSON.stringify({
-        accessToken: "load-test-token",
-        tokenType: "Bearer",
-        user: {
-          email: "admin@example.test",
-          fullName: "Admin User",
-          id: "admin-1",
-          roles: ["ADMIN"],
-        },
-      }),
-      contentType: "application/json",
-      status: 200,
-    });
-  });
-  await page.route("**/api/backend/rules/signals**", async (route) => {
-    await route.fulfill({
-      body: JSON.stringify(syntheticSignals),
+      body: JSON.stringify(body),
       contentType: "application/json",
       status: 200,
     });

@@ -182,6 +182,37 @@ export type ReconciliationRun = {
   riskSignalsTouched: number;
 };
 
+export type NotificationTemplate = {
+  id: string;
+  code: string;
+  channel: string;
+  subjectTemplate: string | null;
+  bodyTemplate: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NotificationRecord = {
+  id: string;
+  taxpayerId: string | null;
+  caseId: string | null;
+  riskSignalId: string | null;
+  channel: string;
+  templateCode: string;
+  recipient: string;
+  subject: string | null;
+  messageBody: string;
+  status: string;
+  deliveryProvider: string | null;
+  deliveryReference: string | null;
+  responseStatus: string | null;
+  responseBody: string | null;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;
