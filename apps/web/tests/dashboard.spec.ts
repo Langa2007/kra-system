@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 test("loads the operational dashboard", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Officer and Executive Dashboard" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Officer and Executive Dashboard" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Operational Snapshot" })).toBeVisible();
   await expect(page.getByText("Estimated exposure")).toBeVisible();
   await expect(page.getByText("Demo data")).toBeVisible();
@@ -43,7 +45,9 @@ test("filters the risk queue and opens a demo case", async ({ page }) => {
   await page.getByTestId("nav-risks").click();
   await expect(page.getByRole("heading", { name: "Priority Risk Queue" })).toBeVisible();
   await page.getByRole("button", { name: /Gap/ }).click();
-  await expect(page.getByRole("row").nth(1).getByRole("button", { name: "Kisumu County Channel 4" })).toBeVisible();
+  await expect(
+    page.getByRole("row").nth(1).getByRole("button", { name: "Kisumu County Channel 4" }),
+  ).toBeVisible();
   await page.getByTestId("risk-filter").fill("Amani");
 
   await expect(page.getByRole("button", { name: "Amani Wholesale Traders" })).toBeVisible();
@@ -146,5 +150,7 @@ test("handles a large synthetic risk queue with filtering", async ({ page }) => 
   await page.getByTestId("risk-filter").fill("Synthetic Trader 199");
 
   await expect(page.getByRole("button", { name: "Synthetic Trader 199" })).toBeVisible();
-  await expect(page.getByRole("button", { exact: true, name: "Synthetic Trader 1" })).toHaveCount(0);
+  await expect(page.getByRole("button", { exact: true, name: "Synthetic Trader 1" })).toHaveCount(
+    0,
+  );
 });

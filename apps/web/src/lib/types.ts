@@ -90,9 +90,11 @@ export type EvidencePack = {
   id: string;
   caseId: string;
   version: number;
-  status: string;
+  summary?: string;
+  status?: string;
   fileUri: string | null;
-  content: Record<string, unknown>;
+  content?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
   generatedAt: string;
   generatedBy: string | null;
   generatedByName: string | null;

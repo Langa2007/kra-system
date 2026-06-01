@@ -30,18 +30,12 @@ import {
   UserRoundSearch,
 } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
+  ApiError,
   addCaseNote,
   createCase,
+  downloadEvidencePackPdf,
   generateEvidencePack,
   getCaseDetail,
   getCases,
@@ -52,6 +46,7 @@ import {
   getTaxGapRanking,
   getTaxGapSummary,
   getTaxpayerProfile,
+  getMe,
   login,
 } from "@/lib/api";
 import {
@@ -126,13 +121,22 @@ function statusTone(value: string) {
   if (normalized.includes("HIGH") || normalized.includes("OPEN")) {
     return "border-exposure/30 bg-exposure/10 text-exposure";
   }
-  if (normalized.includes("RUNNING") || normalized.includes("REVIEW") || normalized.includes("AWAITING")) {
+  if (
+    normalized.includes("RUNNING") ||
+    normalized.includes("REVIEW") ||
+    normalized.includes("AWAITING")
+  ) {
     return "border-revenue/30 bg-revenue/10 text-revenue";
   }
   return "border-assurance/30 bg-assurance/10 text-assurance";
 }
 
-function useAuthedQuery<T>(key: readonly unknown[], token: string | null, queryFn: (token: string) => Promise<T>, fallback: T) {
+function useAuthedQuery<T>(
+  key: readonly unknown[],
+  token: string | null,
+  queryFn: (token: string) => Promise<T>,
+  fallback: T,
+) {
   const query = useQuery({
     enabled: Boolean(token),
     queryFn: () => queryFn(token as string),
@@ -143,6 +147,7 @@ function useAuthedQuery<T>(key: readonly unknown[], token: string | null, queryF
     ...query,
     data: query.data ?? fallback,
     isDemo: !token || query.isError,
+    liveData: query.data,
   };
 }
 
@@ -162,31 +167,67 @@ export function DashboardApp() {
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem("kra-token");
-    const storedUser = window.localStorage.getItem("kra-user");
-    if (storedToken) {
-      setToken(storedToken);
+    if (!storedToken) {
+      return;
     }
-    if (storedUser) {
-      setUser(JSON.parse(storedUser) as UserSummary);
-    }
+
+    let cancelled = false;
+    getMe(storedToken)
+      .then((storedUser) => {
+        if (cancelled) {
+          return;
+        }
+        setToken(storedToken);
+        setUser(storedUser);
+        window.localStorage.setItem("kra-user", JSON.stringify(storedUser));
+      })
+      .catch(() => {
+        window.localStorage.removeItem("kra-token");
+        window.localStorage.removeItem("kra-user");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signalsQuery = useAuthedQuery(["signals", token], token, getRiskSignals, demoSignals);
   const rankingQuery = useAuthedQuery(["ranking", token], token, getTaxGapRanking, demoRanking);
   const summaryQuery = useAuthedQuery(["summary", token], token, getTaxGapSummary, demoSummary);
   const casesQuery = useAuthedQuery(["cases", token], token, getCases, demoCases);
-  const ingestionQuery = useAuthedQuery(["ingestion", token], token, getIngestionJobs, demoIngestionJobs);
-  const dataSourcesQuery = useAuthedQuery(["data-sources", token], token, getDataSources, demoDataSources);
+  const ingestionQuery = useAuthedQuery(
+    ["ingestion", token],
+    token,
+    getIngestionJobs,
+    demoIngestionJobs,
+  );
+  const dataSourcesQuery = useAuthedQuery(
+    ["data-sources", token],
+    token,
+    getDataSources,
+    demoDataSources,
+  );
   const rulesQuery = useAuthedQuery(["rules", token], token, getRules, demoRules);
+  const liveCaseSelected = Boolean(
+    selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
+  );
+  const liveTaxpayerIds = useMemo(
+    () => [
+      ...(rankingQuery.liveData?.map((record) => record.taxpayerId) ?? []),
+      ...(signalsQuery.liveData?.map((signal) => signal.taxpayerId) ?? []),
+    ],
+    [rankingQuery.liveData, signalsQuery.liveData],
+  );
+  const liveTaxpayerSelected = liveTaxpayerIds.includes(selectedTaxpayerId);
 
   const profileQuery = useQuery({
-    enabled: Boolean(token && selectedTaxpayerId),
+    enabled: Boolean(token && liveTaxpayerSelected),
     queryFn: () => getTaxpayerProfile(token as string, selectedTaxpayerId),
     queryKey: ["taxpayer-profile", token, selectedTaxpayerId],
   });
 
   const caseDetailQuery = useQuery({
-    enabled: Boolean(token && selectedCaseId),
+    enabled: Boolean(token && liveCaseSelected),
     queryFn: () => getCaseDetail(token as string, selectedCaseId),
     queryKey: ["case-detail", token, selectedCaseId],
   });
@@ -197,9 +238,76 @@ export function DashboardApp() {
   const cases = casesQuery.data;
   const caseDetail = caseDetailQuery.data ?? detailFallback(cases, selectedCaseId);
   const profile = profileQuery.data ?? profileFallback(rankingQuery.data, selectedTaxpayerId);
-  const selectedSignal = riskSignals.find((signal) => signal.id === selectedSignalId) ?? riskSignals[0];
+  const selectedSignal =
+    riskSignals.find((signal) => signal.id === selectedSignalId) ?? riskSignals[0];
   const selectedCase = cases.find((record) => record.id === selectedCaseId) ?? cases[0];
   const liveMode = Boolean(token) && !signalsQuery.isError && !casesQuery.isError;
+
+  useEffect(() => {
+    if (!token || casesQuery.isError || !casesQuery.liveData?.length) {
+      return;
+    }
+
+    if (!casesQuery.liveData.some((record) => record.id === selectedCaseId)) {
+      setSelectedCaseId(casesQuery.liveData[0].id);
+    }
+  }, [casesQuery.isError, casesQuery.liveData, selectedCaseId, token]);
+
+  useEffect(() => {
+    if (!token || signalsQuery.isError || !signalsQuery.liveData?.length) {
+      return;
+    }
+
+    if (!signalsQuery.liveData.some((signal) => signal.id === selectedSignalId)) {
+      setSelectedSignalId(signalsQuery.liveData[0].id);
+    }
+  }, [selectedSignalId, signalsQuery.isError, signalsQuery.liveData, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    if (liveTaxpayerIds.length && !liveTaxpayerIds.includes(selectedTaxpayerId)) {
+      setSelectedTaxpayerId(liveTaxpayerIds[0]);
+    }
+  }, [liveTaxpayerIds, selectedTaxpayerId, token]);
+
+  useEffect(() => {
+    const authError = [
+      signalsQuery.error,
+      rankingQuery.error,
+      summaryQuery.error,
+      casesQuery.error,
+      ingestionQuery.error,
+      dataSourcesQuery.error,
+      rulesQuery.error,
+      profileQuery.error,
+      caseDetailQuery.error,
+    ].some((error) => error instanceof ApiError && [401, 403].includes(error.status));
+
+    if (!authError) {
+      return;
+    }
+
+    window.localStorage.removeItem("kra-token");
+    window.localStorage.removeItem("kra-user");
+    setToken(null);
+    setUser(null);
+    queryClient.clear();
+    setToast("Session expired. Sign in again.");
+  }, [
+    caseDetailQuery.error,
+    casesQuery.error,
+    dataSourcesQuery.error,
+    ingestionQuery.error,
+    profileQuery.error,
+    queryClient,
+    rankingQuery.error,
+    rulesQuery.error,
+    signalsQuery.error,
+    summaryQuery.error,
+  ]);
 
   const createCaseMutation = useMutation({
     mutationFn: (riskSignalId: string) => createCase(token as string, riskSignalId, "HIGH"),
@@ -222,7 +330,20 @@ export function DashboardApp() {
 
   const evidenceMutation = useMutation({
     mutationFn: () => generateEvidencePack(token as string, selectedCaseId),
-    onSuccess: () => {
+    onSuccess: (pack) => {
+      queryClient.setQueryData<CaseDetail>(["case-detail", token, selectedCaseId], (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          evidencePacks: [
+            pack,
+            ...current.evidencePacks.filter((existing) => existing.id !== pack.id),
+          ],
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["case-detail", token, selectedCaseId] });
       setActiveView("evidence");
       setToast("Evidence pack generated");
@@ -245,13 +366,19 @@ export function DashboardApp() {
   }
 
   const metrics = useMemo(() => {
-    const estimatedGap = riskSignals.reduce((total, signal) => total + Number(signal.estimatedGap ?? 0), 0);
+    const estimatedGap = riskSignals.reduce(
+      (total, signal) => total + Number(signal.estimatedGap ?? 0),
+      0,
+    );
     const recoverable = rankingQuery.data.reduce(
       (total, record) => total + Number(record.estimatedRecoverableTax ?? 0),
       0,
     );
     const openCases = cases.filter((record) => record.status !== "CLOSED").length;
-    const invalidRows = ingestionQuery.data.reduce((total, job) => total + Number(job.recordsInvalid ?? 0), 0);
+    const invalidRows = ingestionQuery.data.reduce(
+      (total, job) => total + Number(job.recordsInvalid ?? 0),
+      0,
+    );
 
     return [
       { label: "Estimated exposure", tone: "text-exposure", value: money(estimatedGap) },
@@ -272,7 +399,9 @@ export function DashboardApp() {
             </h1>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <span className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-semibold ${liveMode ? "border-assurance/30 bg-assurance/10 text-assurance" : "border-revenue/30 bg-revenue/10 text-revenue"}`}>
+            <span
+              className={`inline-flex min-h-10 items-center rounded-md border px-3 text-sm font-semibold ${liveMode ? "border-assurance/30 bg-assurance/10 text-assurance" : "border-revenue/30 bg-revenue/10 text-revenue"}`}
+            >
               {liveMode ? "Live API" : "Demo data"}
             </span>
             <LoginPanel
@@ -293,7 +422,10 @@ export function DashboardApp() {
 
       <div className="mx-auto grid w-full max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[240px_1fr] lg:px-8">
         <aside className="lg:sticky lg:top-4 lg:self-start">
-          <nav aria-label="Dashboard sections" className="grid gap-2 rounded-md border border-line bg-white p-2 shadow-panel sm:grid-cols-2 lg:grid-cols-1">
+          <nav
+            aria-label="Dashboard sections"
+            className="grid gap-2 rounded-md border border-line bg-white p-2 shadow-panel sm:grid-cols-2 lg:grid-cols-1"
+          >
             {navItems.map((item) => {
               const Icon = item.icon;
               const selected = activeView === item.key;
@@ -396,7 +528,9 @@ export function DashboardApp() {
             />
           ) : null}
 
-          {activeView === "evidence" ? <EvidenceView caseDetail={caseDetail} token={token} /> : null}
+          {activeView === "evidence" ? (
+            <EvidenceView caseDetail={caseDetail} token={token} />
+          ) : null}
 
           {activeView === "ingestion" ? (
             <IngestionView dataSources={dataSourcesQuery.data} jobs={ingestionQuery.data} />
@@ -487,7 +621,11 @@ function LoginPanel({
         disabled={mutation.isPending}
         type="submit"
       >
-        {mutation.isPending ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <LogIn size={17} aria-hidden="true" />}
+        {mutation.isPending ? (
+          <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+        ) : (
+          <LogIn size={17} aria-hidden="true" />
+        )}
         Sign in
       </button>
       {error ? <p className="max-w-64 text-sm font-medium text-exposure">{error}</p> : null}
@@ -522,7 +660,10 @@ function OverviewView({
       <Section title="Operational Snapshot">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => (
-            <article className="rounded-md border border-line bg-white p-4 shadow-panel" key={metric.label}>
+            <article
+              className="rounded-md border border-line bg-white p-4 shadow-panel"
+              key={metric.label}
+            >
               <p className="text-sm font-medium text-gray-700">{metric.label}</p>
               <p className={`mt-3 text-2xl font-semibold ${metric.tone}`}>{metric.value}</p>
             </article>
@@ -541,7 +682,12 @@ function OverviewView({
                   <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
                   <Tooltip formatter={(value) => money(Number(value))} />
                   <Bar dataKey="gap" fill="#a33b2f" name="Estimated gap" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="recoverable" fill="#245c4f" name="Recoverable" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="recoverable"
+                    fill="#245c4f"
+                    name="Recoverable"
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -552,8 +698,16 @@ function OverviewView({
 
         <Section title="Current Flow">
           <div className="grid gap-3">
-            <FlowItem icon={<AlertTriangle size={20} />} label="Open risk signals" value={String(riskSignals.length)} />
-            <FlowItem icon={<Database size={20} />} label="Ingestion jobs" value={String(ingestionJobs.length)} />
+            <FlowItem
+              icon={<AlertTriangle size={20} />}
+              label="Open risk signals"
+              value={String(riskSignals.length)}
+            />
+            <FlowItem
+              icon={<Database size={20} />}
+              label="Ingestion jobs"
+              value={String(ingestionJobs.length)}
+            />
             <FlowItem
               icon={<ShieldCheck size={20} />}
               label="Completed jobs"
@@ -604,7 +758,9 @@ function RiskQueueView({
       { accessorKey: "taxHead", header: "Tax head" },
       {
         accessorKey: "estimatedGap",
-        cell: ({ row }) => <span className="font-semibold text-exposure">{money(row.original.estimatedGap)}</span>,
+        cell: ({ row }) => (
+          <span className="font-semibold text-exposure">{money(row.original.estimatedGap)}</span>
+        ),
         header: "Gap",
         sortDescFirst: false,
       },
@@ -638,7 +794,14 @@ function RiskQueueView({
 
   return (
     <Section
-      actions={<SearchInput label="Filter risk queue" onChange={onFilter} testId="risk-filter" value={filter} />}
+      actions={
+        <SearchInput
+          label="Filter risk queue"
+          onChange={onFilter}
+          testId="risk-filter"
+          value={filter}
+        />
+      }
       title="Priority Risk Queue"
     >
       <DataTable
@@ -673,7 +836,17 @@ function TaxpayerView({
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <Section actions={<SearchInput label="Search taxpayers" onChange={onSearch} testId="taxpayer-search" value={search} />} title="Taxpayer Search">
+      <Section
+        actions={
+          <SearchInput
+            label="Search taxpayers"
+            onChange={onSearch}
+            testId="taxpayer-search"
+            value={search}
+          />
+        }
+        title="Taxpayer Search"
+      >
         <div className="grid gap-2">
           {filtered.map((record) => (
             <button
@@ -687,7 +860,10 @@ function TaxpayerView({
                 <span className="text-sm font-medium text-gray-700">{record.taxpayerPin}</span>
               </div>
               <p className="mt-2 text-sm text-gray-700">
-                Recoverable: <span className="font-semibold text-authority">{money(record.estimatedRecoverableTax)}</span>
+                Recoverable:{" "}
+                <span className="font-semibold text-authority">
+                  {money(record.estimatedRecoverableTax)}
+                </span>
               </p>
             </button>
           ))}
@@ -700,7 +876,9 @@ function TaxpayerView({
             <p className="text-sm font-semibold uppercase text-authority">{profile.kraPin}</p>
             <h2 className="mt-1 text-2xl font-semibold">{profile.legalName}</h2>
             <p className="mt-1 text-sm text-gray-700">
-              {[profile.taxpayerType, profile.sectorName, profile.county].filter(Boolean).join(" / ")}
+              {[profile.taxpayerType, profile.sectorName, profile.county]
+                .filter(Boolean)
+                .join(" / ")}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -710,11 +888,15 @@ function TaxpayerView({
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <InfoList
-              items={profile.identifiers.map((item) => `${item.identifierType}: ${item.identifierValue}`)}
+              items={profile.identifiers.map(
+                (item) => `${item.identifierType}: ${item.identifierValue}`,
+              )}
               title="Identifiers"
             />
             <InfoList
-              items={profile.relationships.map((item) => `${item.relationshipType}: ${item.relatedPersonName}`)}
+              items={profile.relationships.map(
+                (item) => `${item.relationshipType}: ${item.relatedPersonName}`,
+              )}
               title="Relationships"
             />
           </div>
@@ -755,8 +937,16 @@ function CasesView({
     () => [
       { accessorKey: "caseNumber", header: "Case" },
       { accessorKey: "taxpayerName", header: "Taxpayer" },
-      { accessorKey: "priority", cell: ({ row }) => <Badge value={row.original.priority} />, header: "Priority" },
-      { accessorKey: "status", cell: ({ row }) => <Badge value={row.original.status} />, header: "Status" },
+      {
+        accessorKey: "priority",
+        cell: ({ row }) => <Badge value={row.original.priority} />,
+        header: "Priority",
+      },
+      {
+        accessorKey: "status",
+        cell: ({ row }) => <Badge value={row.original.status} />,
+        header: "Status",
+      },
       {
         accessorKey: "estimatedRecoverableAmount",
         cell: ({ row }) => money(row.original.estimatedRecoverableAmount),
@@ -769,7 +959,17 @@ function CasesView({
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-      <Section actions={<SearchInput label="Filter cases" onChange={onFilter} testId="case-filter" value={filter} />} title="Case List">
+      <Section
+        actions={
+          <SearchInput
+            label="Filter cases"
+            onChange={onFilter}
+            testId="case-filter"
+            value={filter}
+          />
+        }
+        title="Case List"
+      >
         <DataTable
           columns={columns}
           data={rows}
@@ -782,7 +982,9 @@ function CasesView({
       <Section title="Case Detail">
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-semibold uppercase text-authority">{caseDetail.detail.caseNumber}</p>
+            <p className="text-sm font-semibold uppercase text-authority">
+              {caseDetail.detail.caseNumber}
+            </p>
             <h2 className="mt-1 text-xl font-semibold">{caseDetail.detail.title}</h2>
             <p className="mt-2 text-sm text-gray-700">
               {caseDetail.detail.taxpayerPin} / {caseDetail.detail.taxpayerName}
@@ -790,7 +992,10 @@ function CasesView({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <MetricLine label="Status" value={caseDetail.detail.status} />
-            <MetricLine label="Recoverable" value={money(caseDetail.detail.estimatedRecoverableAmount)} />
+            <MetricLine
+              label="Recoverable"
+              value={money(caseDetail.detail.estimatedRecoverableAmount)}
+            />
             <MetricLine label="Assessed" value={money(caseDetail.detail.assessedAmount)} />
             <MetricLine label="Collected" value={money(caseDetail.detail.collectedAmount)} />
           </div>
@@ -801,7 +1006,11 @@ function CasesView({
               onClick={onGenerateEvidence}
               type="button"
             >
-              {isEvidencePending ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
+              {isEvidencePending ? (
+                <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+              ) : (
+                <FileText size={17} aria-hidden="true" />
+              )}
               Generate evidence
             </button>
           </div>
@@ -825,7 +1034,10 @@ function CasesView({
               Add note
             </button>
           </div>
-          <InfoList items={caseDetail.events.map((event) => `${event.eventType}: ${event.note}`)} title="Events" />
+          <InfoList
+            items={caseDetail.events.map((event) => `${event.eventType}: ${event.note}`)}
+            title="Events"
+          />
         </div>
       </Section>
     </div>
@@ -833,10 +1045,42 @@ function CasesView({
 }
 
 function EvidenceView({ caseDetail, token }: { caseDetail: CaseDetail; token: string | null }) {
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const latestPack = caseDetail.evidencePacks[0] ?? demoCaseDetail.evidencePacks[0];
-  const pdfHref = token
-    ? `/api/backend/cases/${caseDetail.detail.id}/evidence-packs/${latestPack.id}?format=pdf`
-    : undefined;
+  const evidence = latestPack.evidence ?? latestPack.content ?? {};
+  const packBelongsToCase = latestPack.caseId === caseDetail.detail.id;
+  const canDownload = Boolean(
+    token &&
+      packBelongsToCase &&
+      latestPack.fileUri?.startsWith("file:") &&
+      latestPack.id &&
+      caseDetail.detail.id,
+  );
+
+  async function handleOpenPdf() {
+    if (!token || !canDownload) {
+      return;
+    }
+
+    setDownloadError(null);
+    setIsDownloading(true);
+    try {
+      const blob = await downloadEvidencePackPdf(token, caseDetail.detail.id, latestPack.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${caseDetail.detail.caseNumber}-evidence-pack-v${latestPack.version}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : "PDF export failed");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   return (
     <Section title="Evidence Pack Viewer">
@@ -846,19 +1090,25 @@ function EvidenceView({ caseDetail, token }: { caseDetail: CaseDetail; token: st
           <MetricLine label="Taxpayer" value={caseDetail.detail.taxpayerName} />
           <MetricLine label="Version" value={String(latestPack.version)} />
           <MetricLine label="Generated" value={shortDate(latestPack.generatedAt)} />
-          <a
-            aria-disabled={!pdfHref}
-            className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-semibold ${pdfHref ? "bg-authority text-white hover:bg-[#1d4a40]" : "bg-line text-gray-700"}`}
-            href={pdfHref ?? "#"}
-            rel="noreferrer"
-            target="_blank"
+          <button
+            className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-semibold ${canDownload ? "bg-authority text-white hover:bg-[#1d4a40]" : "bg-line text-gray-700"}`}
+            disabled={!canDownload || isDownloading}
+            onClick={handleOpenPdf}
+            type="button"
           >
-            <FileText size={17} aria-hidden="true" />
-            Open PDF
-          </a>
+            {isDownloading ? (
+              <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+            ) : (
+              <FileText size={17} aria-hidden="true" />
+            )}
+            {isDownloading ? "Preparing PDF" : "Download PDF"}
+          </button>
+          {downloadError ? (
+            <p className="text-sm font-medium text-exposure">{downloadError}</p>
+          ) : null}
         </div>
         <pre className="max-h-[560px] overflow-auto rounded-md border border-line bg-[#111827] p-4 text-xs leading-5 text-white">
-          {JSON.stringify(latestPack.content, null, 2)}
+          {JSON.stringify(evidence, null, 2)}
         </pre>
       </div>
     </Section>
@@ -871,7 +1121,10 @@ function IngestionView({ dataSources, jobs }: { dataSources: DataSource[]; jobs:
       <Section title="Data Sources">
         <div className="grid gap-3">
           {dataSources.map((source) => (
-            <article className="rounded-md border border-line bg-white p-4 shadow-panel" key={source.id}>
+            <article
+              className="rounded-md border border-line bg-white p-4 shadow-panel"
+              key={source.id}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold">{source.name}</h3>
                 <Badge value={source.active ? "ACTIVE" : "INACTIVE"} />
@@ -901,7 +1154,9 @@ function IngestionView({ dataSources, jobs }: { dataSources: DataSource[]; jobs:
                 <tr className="border-t border-line" key={job.id}>
                   <td className="px-4 py-3 font-medium">{job.fileName}</td>
                   <td className="px-4 py-3">{job.targetTable}</td>
-                  <td className="px-4 py-3"><Badge value={job.status} /></td>
+                  <td className="px-4 py-3">
+                    <Badge value={job.status} />
+                  </td>
                   <td className="px-4 py-3">{job.recordsValid.toLocaleString()}</td>
                   <td className="px-4 py-3">{job.recordsInvalid.toLocaleString()}</td>
                   <td className="px-4 py-3">{shortDate(job.startedAt)}</td>
@@ -919,8 +1174,14 @@ function RulesView({ isAdmin, rules }: { isAdmin: boolean; rules: RuleDefinition
   return (
     <Section
       actions={
-        <span className={`inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${isAdmin ? "border-assurance/30 bg-assurance/10 text-assurance" : "border-revenue/30 bg-revenue/10 text-revenue"}`}>
-          {isAdmin ? <ShieldCheck size={17} aria-hidden="true" /> : <Lock size={17} aria-hidden="true" />}
+        <span
+          className={`inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${isAdmin ? "border-assurance/30 bg-assurance/10 text-assurance" : "border-revenue/30 bg-revenue/10 text-revenue"}`}
+        >
+          {isAdmin ? (
+            <ShieldCheck size={17} aria-hidden="true" />
+          ) : (
+            <Lock size={17} aria-hidden="true" />
+          )}
           {isAdmin ? "Admin access" : "Read only"}
         </span>
       }
@@ -928,7 +1189,10 @@ function RulesView({ isAdmin, rules }: { isAdmin: boolean; rules: RuleDefinition
     >
       <div className="grid gap-3">
         {rules.map((rule) => (
-          <article className="rounded-md border border-line bg-white p-4 shadow-panel" key={rule.code}>
+          <article
+            className="rounded-md border border-line bg-white p-4 shadow-panel"
+            key={rule.code}
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold uppercase text-authority">{rule.code}</p>
@@ -1021,9 +1285,20 @@ function DataTable<T extends object>({
   );
 }
 
-function Section({ actions, children, title }: { actions?: ReactNode; children: ReactNode; title: string }) {
+function Section({
+  actions,
+  children,
+  title,
+}: {
+  actions?: ReactNode;
+  children: ReactNode;
+  title: string;
+}) {
   return (
-    <section className="min-w-0 rounded-md border border-line bg-white p-4 shadow-panel sm:p-5" aria-labelledby={titleId(title)}>
+    <section
+      className="min-w-0 rounded-md border border-line bg-white p-4 shadow-panel sm:p-5"
+      aria-labelledby={titleId(title)}
+    >
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold" id={titleId(title)}>
           {title}
@@ -1049,7 +1324,10 @@ function SearchInput({
   return (
     <label className="relative block w-full max-w-sm">
       <span className="sr-only">{label}</span>
-      <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={17} />
+      <Search
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+        size={17}
+      />
       <input
         className="min-h-11 w-full rounded-md border border-line bg-white py-2 pl-10 pr-3 text-sm focus:border-authority"
         data-testid={testId}
@@ -1063,7 +1341,9 @@ function SearchInput({
 
 function Badge({ value }: { value: string }) {
   return (
-    <span className={`inline-flex min-h-7 items-center rounded-md border px-2 text-xs font-semibold ${statusTone(value)}`}>
+    <span
+      className={`inline-flex min-h-7 items-center rounded-md border px-2 text-xs font-semibold ${statusTone(value)}`}
+    >
       {value.replace("_", " ")}
     </span>
   );
@@ -1072,7 +1352,9 @@ function Badge({ value }: { value: string }) {
 function MetricLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-line bg-paper p-3">
-      <p className="text-xs font-semibold uppercase text-gray-600">{label.replace(/([A-Z])/g, " $1")}</p>
+      <p className="text-xs font-semibold uppercase text-gray-600">
+        {label.replace(/([A-Z])/g, " $1")}
+      </p>
       <p className="mt-1 break-words text-sm font-semibold">{value}</p>
     </div>
   );

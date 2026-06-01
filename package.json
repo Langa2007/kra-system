@@ -13,8 +13,8 @@
     "test:web": "npm --workspace apps/web run test",
     "test:api": ".\\mvnw.cmd -f apps/api/pom.xml test",
     "test:analytics": "python -m pytest apps/analytics",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write \"*.{json,md,yml,yaml}\" \".github/workflows/*.yml\" \"apps/api/README.md\" \"apps/api/src/main/resources/*.yaml\" \"apps/analytics/README.md\" \"apps/web/**/*.{css,js,jsx,json,md,ts,tsx}\" \"packages/synthetic-data/README.md\"",
+    "format:check": "prettier --check \"*.{json,md,yml,yaml}\" \".github/workflows/*.yml\" \"apps/api/README.md\" \"apps/api/src/main/resources/*.yaml\" \"apps/analytics/README.md\" \"apps/web/**/*.{css,js,jsx,json,md,ts,tsx}\" \"packages/synthetic-data/README.md\"",
     "lint": "npm run lint:web && npm run lint:analytics",
     "test": "npm run test:web && npm run test:api && npm run test:analytics"
   },

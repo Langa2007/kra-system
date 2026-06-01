@@ -1,5 +1,6 @@
 import type {
   CaseDetail,
+  EvidencePack,
   CaseRecord,
   DataSource,
   IngestionJob,
@@ -107,10 +108,29 @@ export function addCaseNote(token: string, caseId: string, note: string) {
 }
 
 export function generateEvidencePack(token: string, caseId: string) {
-  return request(`/cases/${caseId}/evidence-packs`, {
+  return request<EvidencePack>(`/cases/${caseId}/evidence-packs`, {
     method: "POST",
     token,
   });
+}
+
+export async function downloadEvidencePackPdf(token: string, caseId: string, packId: string) {
+  const response = await fetch(
+    `${API_PREFIX}/cases/${caseId}/evidence-packs/${packId}?format=pdf`,
+    {
+      headers: {
+        Accept: "application/pdf",
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || response.statusText, response.status);
+  }
+
+  return response.blob();
 }
 
 export function getTaxpayerProfile(token: string | null, taxpayerId: string) {
