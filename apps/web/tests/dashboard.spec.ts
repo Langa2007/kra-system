@@ -96,6 +96,16 @@ test("renders ingestion and role-aware rule views", async ({ page }) => {
   await expect(page.getByText("VAT_OUTPUT_MISMATCH")).toBeVisible();
 });
 
+test("shows settlement reconciliation scope", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByTestId("nav-settlements").click();
+  await expect(page.getByRole("heading", { name: "Settlement Monitor" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run reconciliation" })).toBeVisible();
+  await expect(page.getByText("Missing settlements")).toBeVisible();
+  await expect(page.getByText("Exception Report")).toBeVisible();
+});
+
 test("handles a large synthetic risk queue with filtering", async ({ page }) => {
   const syntheticSignals = Array.from({ length: 200 }, (_, index) => ({
     confidenceScore: 80 + (index % 15),

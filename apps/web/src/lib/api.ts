@@ -5,6 +5,9 @@ import type {
   DataSource,
   IngestionJob,
   LoginResponse,
+  ReconciliationResult,
+  ReconciliationRun,
+  ReconciliationSummary,
   RiskSignal,
   RuleDefinition,
   TaxGapRanking,
@@ -147,4 +150,30 @@ export function getDataSources(token: string | null) {
 
 export function getRules(token: string | null) {
   return request<RuleDefinition[]>("/rules", { token });
+}
+
+export function getReconciliationSummary(token: string | null) {
+  return request<ReconciliationSummary>("/reconciliation/summary", { token });
+}
+
+export function getReconciliationResults(token: string | null) {
+  return request<ReconciliationResult[]>("/reconciliation/results?limit=200", { token });
+}
+
+export function runReconciliation(token: string) {
+  return request<ReconciliationRun>("/reconciliation/jobs", {
+    body: {
+      expectedSettlementAccount: "CBK-KRA-MAIN",
+      settlementDelayDays: 2,
+    },
+    method: "POST",
+    token,
+  });
+}
+
+export function openReconciliationCase(token: string, resultId: string) {
+  return request<CaseRecord>(`/reconciliation/results/${resultId}/case`, {
+    method: "POST",
+    token,
+  });
 }

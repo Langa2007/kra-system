@@ -1319,7 +1319,7 @@ CREATE TABLE user_preferences (
 
 ### Exit Criteria
 
-- [ ] A non-developer can use the MVP to find a risk, open a case, and view evidence.
+- [x] A non-developer can use the MVP to find a risk, open a case, and view evidence.
 
 ## Phase 10: Revenue Assurance and Settlement Monitor
 
@@ -1329,33 +1329,33 @@ Build the module for government collection-to-settlement reconciliation.
 
 ### Scope
 
-- Reconcile payment transactions against settlement records.
-- Detect missing settlements.
-- Detect delayed settlements.
-- Detect duplicate transactions.
-- Detect wrong settlement account.
-- Detect convenience fee mismatch if fee data exists.
-- Create exception reports.
-- Create settlement risk cases.
+- [x] Reconcile payment transactions against settlement records.
+- [x] Detect missing settlements.
+- [x] Detect delayed settlements.
+- [x] Detect duplicate transactions.
+- [x] Detect wrong settlement account.
+- [x] Detect convenience fee mismatch if fee data exists.
+- [x] Create exception reports.
+- [x] Create settlement risk cases.
 
 ### Tech Stack
 
-- Spring Boot
-- PostgreSQL
-- Optional ClickHouse later for very large transaction volumes
-- Next.js dashboards
+- [x] Spring Boot
+- [x] PostgreSQL
+- [x] Optional ClickHouse later for very large transaction volumes
+- [x] Next.js dashboards
 
 ### Database Work
 
 Use:
 
-- payment_transactions
-- settlement_records
-- risk_rules
-- risk_signals
-- cases
+- [x] payment_transactions
+- [x] settlement_records
+- [x] risk_rules
+- [x] risk_signals
+- [x] cases
 
-Add optional reconciliation table:
+- [x] Add reconciliation table:
 
 ```sql
 CREATE TABLE reconciliation_results (
@@ -1375,15 +1375,15 @@ CREATE TABLE reconciliation_results (
 
 ### Testing Gate
 
-- Reconciliation tests cover exact match, missing settlement, partial settlement, delayed settlement, duplicate payment, and wrong account.
-- Daily exception report is generated.
-- Settlement cases can be opened.
-- Dashboard shows collections, settlements, variance, and aging.
-- Performance test runs with at least 50,000 synthetic transactions.
+- [x] Reconciliation tests cover exact match, missing settlement, partial settlement, delayed settlement, duplicate payment, and wrong account.
+- [x] Daily exception report is generated.
+- [x] Settlement cases can be opened.
+- [x] Dashboard shows collections, settlements, variance, and aging.
+- [x] Performance test runs with at least 50,000 synthetic transactions.
 
 ### Exit Criteria
 
-- The product has a strong county/public finance pilot module.
+- [x] The product has a strong county/public finance pilot module.
 
 ## Phase 11: Voluntary Compliance and Nudging
 

@@ -41,6 +41,8 @@ import {
   getCases,
   getDataSources,
   getIngestionJobs,
+  getReconciliationResults,
+  getReconciliationSummary,
   getRiskSignals,
   getRules,
   getTaxGapRanking,
@@ -48,6 +50,8 @@ import {
   getTaxpayerProfile,
   getMe,
   login,
+  openReconciliationCase,
+  runReconciliation,
 } from "@/lib/api";
 import {
   demoCaseDetail,
@@ -56,6 +60,8 @@ import {
   demoIngestionJobs,
   demoProfile,
   demoRanking,
+  demoReconciliationResults,
+  demoReconciliationSummary,
   demoRules,
   demoSignals,
   demoSummary,
@@ -66,6 +72,8 @@ import type {
   CaseRecord,
   DataSource,
   IngestionJob,
+  ReconciliationResult,
+  ReconciliationSummary,
   RiskSignal,
   RuleDefinition,
   TaxGapRanking,
@@ -74,7 +82,15 @@ import type {
   UserSummary,
 } from "@/lib/types";
 
-type ViewKey = "overview" | "risks" | "taxpayers" | "cases" | "evidence" | "ingestion" | "rules";
+type ViewKey =
+  | "overview"
+  | "risks"
+  | "taxpayers"
+  | "cases"
+  | "evidence"
+  | "settlements"
+  | "ingestion"
+  | "rules";
 
 const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = [
   { icon: Activity, key: "overview", label: "Overview" },
@@ -82,6 +98,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: UserRoundSearch, key: "taxpayers", label: "Taxpayers" },
   { icon: BriefcaseBusiness, key: "cases", label: "Cases" },
   { icon: FileJson, key: "evidence", label: "Evidence" },
+  { icon: BadgeCheck, key: "settlements", label: "Settlements" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
 ];
@@ -208,6 +225,18 @@ export function DashboardApp() {
     demoDataSources,
   );
   const rulesQuery = useAuthedQuery(["rules", token], token, getRules, demoRules);
+  const reconciliationSummaryQuery = useAuthedQuery(
+    ["reconciliation-summary", token],
+    token,
+    getReconciliationSummary,
+    demoReconciliationSummary,
+  );
+  const reconciliationResultsQuery = useAuthedQuery(
+    ["reconciliation-results", token],
+    token,
+    getReconciliationResults,
+    demoReconciliationResults,
+  );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
   );
@@ -282,6 +311,8 @@ export function DashboardApp() {
       ingestionQuery.error,
       dataSourcesQuery.error,
       rulesQuery.error,
+      reconciliationSummaryQuery.error,
+      reconciliationResultsQuery.error,
       profileQuery.error,
       caseDetailQuery.error,
     ].some((error) => error instanceof ApiError && [401, 403].includes(error.status));
@@ -304,6 +335,8 @@ export function DashboardApp() {
     profileQuery.error,
     queryClient,
     rankingQuery.error,
+    reconciliationResultsQuery.error,
+    reconciliationSummaryQuery.error,
     rulesQuery.error,
     signalsQuery.error,
     summaryQuery.error,
@@ -347,6 +380,27 @@ export function DashboardApp() {
       queryClient.invalidateQueries({ queryKey: ["case-detail", token, selectedCaseId] });
       setActiveView("evidence");
       setToast("Evidence pack generated");
+    },
+  });
+
+  const reconciliationMutation = useMutation({
+    mutationFn: () => runReconciliation(token as string),
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: ["reconciliation-summary", token] });
+      queryClient.invalidateQueries({ queryKey: ["reconciliation-results", token] });
+      queryClient.invalidateQueries({ queryKey: ["signals", token] });
+      setToast(`Reconciliation complete: ${run.exceptions} exceptions`);
+    },
+  });
+
+  const reconciliationCaseMutation = useMutation({
+    mutationFn: (resultId: string) => openReconciliationCase(token as string, resultId),
+    onSuccess: (record) => {
+      setSelectedCaseId(record.id);
+      setActiveView("cases");
+      queryClient.invalidateQueries({ queryKey: ["cases", token] });
+      queryClient.invalidateQueries({ queryKey: ["reconciliation-results", token] });
+      setToast(`Settlement case ${record.caseNumber} opened`);
     },
   });
 
@@ -530,6 +584,29 @@ export function DashboardApp() {
 
           {activeView === "evidence" ? (
             <EvidenceView caseDetail={caseDetail} token={token} />
+          ) : null}
+
+          {activeView === "settlements" ? (
+            <SettlementView
+              isCasePending={reconciliationCaseMutation.isPending}
+              isRunPending={reconciliationMutation.isPending}
+              onOpenCase={(resultId) => {
+                if (token) {
+                  reconciliationCaseMutation.mutate(resultId);
+                } else {
+                  setToast("Sign in to open settlement cases");
+                }
+              }}
+              onRun={() => {
+                if (token) {
+                  reconciliationMutation.mutate();
+                } else {
+                  setToast("Sign in to run reconciliation");
+                }
+              }}
+              results={reconciliationResultsQuery.data}
+              summary={reconciliationSummaryQuery.data}
+            />
           ) : null}
 
           {activeView === "ingestion" ? (
@@ -936,7 +1013,11 @@ function CasesView({
   const columns = useMemo<ColumnDef<CaseRecord>[]>(
     () => [
       { accessorKey: "caseNumber", header: "Case" },
-      { accessorKey: "taxpayerName", header: "Taxpayer" },
+      {
+        accessorKey: "taxpayerName",
+        cell: ({ row }) => row.original.taxpayerName ?? "Public revenue channel",
+        header: "Taxpayer",
+      },
       {
         accessorKey: "priority",
         cell: ({ row }) => <Badge value={row.original.priority} />,
@@ -987,7 +1068,8 @@ function CasesView({
             </p>
             <h2 className="mt-1 text-xl font-semibold">{caseDetail.detail.title}</h2>
             <p className="mt-2 text-sm text-gray-700">
-              {caseDetail.detail.taxpayerPin} / {caseDetail.detail.taxpayerName}
+              {caseDetail.detail.taxpayerPin ?? "No taxpayer PIN"} /{" "}
+              {caseDetail.detail.taxpayerName ?? "Public revenue channel"}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1087,7 +1169,10 @@ function EvidenceView({ caseDetail, token }: { caseDetail: CaseDetail; token: st
       <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
         <div className="space-y-3">
           <MetricLine label="Case" value={caseDetail.detail.caseNumber} />
-          <MetricLine label="Taxpayer" value={caseDetail.detail.taxpayerName} />
+          <MetricLine
+            label="Taxpayer"
+            value={caseDetail.detail.taxpayerName ?? "Public revenue channel"}
+          />
           <MetricLine label="Version" value={String(latestPack.version)} />
           <MetricLine label="Generated" value={shortDate(latestPack.generatedAt)} />
           <button
@@ -1112,6 +1197,158 @@ function EvidenceView({ caseDetail, token }: { caseDetail: CaseDetail; token: st
         </pre>
       </div>
     </Section>
+  );
+}
+
+function SettlementView({
+  isCasePending,
+  isRunPending,
+  onOpenCase,
+  onRun,
+  results,
+  summary,
+}: {
+  isCasePending: boolean;
+  isRunPending: boolean;
+  onOpenCase: (resultId: string) => void;
+  onRun: () => void;
+  results: ReconciliationResult[];
+  summary: ReconciliationSummary;
+}) {
+  const columns = useMemo<ColumnDef<ReconciliationResult>[]>(
+    () => [
+      {
+        accessorKey: "reconciliationDate",
+        cell: ({ row }) => shortDate(row.original.reconciliationDate),
+        header: "Date",
+      },
+      { accessorKey: "collectingAgency", header: "Agency" },
+      { accessorKey: "revenueChannel", header: "Channel" },
+      {
+        accessorKey: "expectedAmount",
+        cell: ({ row }) => money(row.original.expectedAmount),
+        header: "Collections",
+      },
+      {
+        accessorKey: "settledAmount",
+        cell: ({ row }) => money(row.original.settledAmount),
+        header: "Settled",
+      },
+      {
+        accessorKey: "varianceAmount",
+        cell: ({ row }) => (
+          <span className={row.original.varianceAmount > 0 ? "font-semibold text-exposure" : ""}>
+            {money(row.original.varianceAmount)}
+          </span>
+        ),
+        header: "Variance",
+      },
+      {
+        accessorKey: "settlementStatus",
+        cell: ({ row }) => <Badge value={row.original.settlementStatus} />,
+        header: "Status",
+      },
+      {
+        id: "case",
+        cell: ({ row }) =>
+          row.original.settlementStatus === "MATCHED" ? (
+            <span className="text-xs font-semibold text-gray-500">Clear</span>
+          ) : (
+            <button
+              className="inline-flex min-h-9 items-center gap-2 rounded-md bg-authority px-3 text-xs font-semibold text-white hover:bg-[#1d4a40]"
+              disabled={isCasePending || !row.original.riskSignalId}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenCase(row.original.id);
+              }}
+              type="button"
+            >
+              {isCasePending ? (
+                <Loader2 className="animate-spin" size={15} aria-hidden="true" />
+              ) : (
+                <BriefcaseBusiness size={15} aria-hidden="true" />
+              )}
+              Case
+            </button>
+          ),
+        header: "Action",
+      },
+    ],
+    [isCasePending, onOpenCase],
+  );
+
+  return (
+    <div className="grid min-w-0 gap-5">
+      <Section
+        actions={
+          <button
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white hover:bg-[#1d4a40]"
+            disabled={isRunPending}
+            onClick={onRun}
+            type="button"
+          >
+            {isRunPending ? (
+              <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+            ) : (
+              <BadgeCheck size={17} aria-hidden="true" />
+            )}
+            Run reconciliation
+          </button>
+        }
+        title="Settlement Monitor"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+            <p className="text-sm font-medium text-gray-700">Collections</p>
+            <p className="mt-3 text-2xl font-semibold text-authority">
+              {money(summary.expectedAmount)}
+            </p>
+          </article>
+          <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+            <p className="text-sm font-medium text-gray-700">Settlements</p>
+            <p className="mt-3 text-2xl font-semibold text-assurance">
+              {money(summary.settledAmount)}
+            </p>
+          </article>
+          <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+            <p className="text-sm font-medium text-gray-700">Variance</p>
+            <p className="mt-3 text-2xl font-semibold text-exposure">
+              {money(summary.varianceAmount)}
+            </p>
+          </article>
+          <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+            <p className="text-sm font-medium text-gray-700">Exceptions</p>
+            <p className="mt-3 text-2xl font-semibold text-revenue">{summary.exceptionCount}</p>
+          </article>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <FlowItem
+            icon={<AlertTriangle size={20} />}
+            label="Missing settlements"
+            value={String(summary.missingCount)}
+          />
+          <FlowItem
+            icon={<Activity size={20} />}
+            label="Delayed settlements"
+            value={String(summary.delayedCount)}
+          />
+          <FlowItem
+            icon={<ArrowDownUp size={20} />}
+            label="Duplicate payments"
+            value={String(summary.duplicateCount)}
+          />
+          <FlowItem
+            icon={<ShieldCheck size={20} />}
+            label="Wrong account"
+            value={String(summary.wrongAccountCount)}
+          />
+        </div>
+      </Section>
+
+      <Section title="Exception Report">
+        <DataTable columns={columns} data={results} filter="" />
+      </Section>
+    </div>
   );
 }
 

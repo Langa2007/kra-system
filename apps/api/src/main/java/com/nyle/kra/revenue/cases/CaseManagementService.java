@@ -370,7 +370,7 @@ public class CaseManagementService {
                         "status", caseResponse.status()
                 ),
                 "taxpayer", Map.of(
-                        "id", signal.taxpayerId(),
+                        "id", signal.taxpayerId() == null ? "" : signal.taxpayerId().toString(),
                         "kraPin", nullToEmpty(signal.taxpayerPin()),
                         "name", nullToEmpty(signal.taxpayerName())
                 ),

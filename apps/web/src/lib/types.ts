@@ -58,9 +58,9 @@ export type CaseRecord = {
   id: string;
   caseNumber: string;
   riskSignalId: string | null;
-  taxpayerId: string;
-  taxpayerPin: string;
-  taxpayerName: string;
+  taxpayerId: string | null;
+  taxpayerPin: string | null;
+  taxpayerName: string | null;
   title: string;
   caseType: string;
   priority: string;
@@ -141,6 +141,45 @@ export type RuleDefinition = {
   severity: string;
   active: boolean;
   thresholdJson: Record<string, unknown>;
+};
+
+export type ReconciliationResult = {
+  id: string;
+  reconciliationDate: string;
+  collectingAgency: string;
+  revenueChannel: string;
+  expectedAmount: number;
+  settledAmount: number;
+  varianceAmount: number;
+  transactionCount: number;
+  settlementCount: number;
+  settlementStatus: string;
+  expectedSettlementAccount: string | null;
+  settlementAccount: string | null;
+  maxSettlementLagDays: number | null;
+  evidence: Record<string, unknown>;
+  riskSignalId: string | null;
+  createdAt: string;
+};
+
+export type ReconciliationSummary = {
+  expectedAmount: number;
+  settledAmount: number;
+  varianceAmount: number;
+  resultCount: number;
+  exceptionCount: number;
+  missingCount: number;
+  delayedCount: number;
+  duplicateCount: number;
+  wrongAccountCount: number;
+};
+
+export type ReconciliationRun = {
+  from: string;
+  to: string;
+  resultsTouched: number;
+  exceptions: number;
+  riskSignalsTouched: number;
 };
 
 export type TaxpayerProfile = {
