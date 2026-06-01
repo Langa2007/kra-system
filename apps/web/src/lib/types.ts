@@ -13,9 +13,9 @@ export type LoginResponse = {
 
 export type RiskSignal = {
   id: string;
-  taxpayerId: string;
-  taxpayerPin: string;
-  taxpayerName: string;
+  taxpayerId: string | null;
+  taxpayerPin: string | null;
+  taxpayerName: string | null;
   ruleCode: string;
   signalType: string;
   taxHead: string;

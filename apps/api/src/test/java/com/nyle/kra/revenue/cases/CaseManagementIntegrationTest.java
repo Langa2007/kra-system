@@ -72,13 +72,14 @@ class CaseManagementIntegrationTest extends PostgresIntegrationTest {
     void caseCreationFromRiskSignalWorksAndWritesAudit() throws Exception {
         String token = login(TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD);
         UUID signal = signalWithGap(taxpayer("P800000001A", "Case Creation Ltd"), "VAT_OUTPUT_MISMATCH", "VAT", "250000.00");
+        int previousCaseCreatedAudits = auditCount("CASE_CREATED");
 
         JsonNode created = createCase(token, signal);
 
         assertThat(created.get("riskSignalId").asText()).isEqualTo(signal.toString());
         assertThat(created.get("status").asText()).isEqualTo("OPEN");
         assertThat(created.get("estimatedRecoverableAmount").decimalValue()).isEqualByComparingTo("40000.00");
-        assertThat(auditCount("CASE_CREATED")).isEqualTo(1);
+        assertThat(auditCount("CASE_CREATED")).isEqualTo(previousCaseCreatedAudits + 1);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM case_events WHERE case_id = ? AND event_type = 'OPENED'",
                 Integer.class,

@@ -176,7 +176,9 @@ export function DashboardApp() {
   const [riskFilter, setRiskFilter] = useState("");
   const [caseFilter, setCaseFilter] = useState("");
   const [taxpayerSearch, setTaxpayerSearch] = useState("");
-  const [selectedTaxpayerId, setSelectedTaxpayerId] = useState<string>(demoSignals[0].taxpayerId);
+  const [selectedTaxpayerId, setSelectedTaxpayerId] = useState<string>(
+    demoSignals[0].taxpayerId ?? "",
+  );
   const [selectedCaseId, setSelectedCaseId] = useState<string>(demoCases[0].id);
   const [selectedSignalId, setSelectedSignalId] = useState<string>(demoSignals[0].id);
   const [note, setNote] = useState("");
@@ -241,10 +243,11 @@ export function DashboardApp() {
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
   );
   const liveTaxpayerIds = useMemo(
-    () => [
-      ...(rankingQuery.liveData?.map((record) => record.taxpayerId) ?? []),
-      ...(signalsQuery.liveData?.map((signal) => signal.taxpayerId) ?? []),
-    ],
+    () =>
+      [
+        ...(rankingQuery.liveData?.map((record) => record.taxpayerId) ?? []),
+        ...(signalsQuery.liveData?.map((signal) => signal.taxpayerId) ?? []),
+      ].filter((taxpayerId): taxpayerId is string => Boolean(taxpayerId)),
     [rankingQuery.liveData, signalsQuery.liveData],
   );
   const liveTaxpayerSelected = liveTaxpayerIds.includes(selectedTaxpayerId);
@@ -313,8 +316,6 @@ export function DashboardApp() {
       rulesQuery.error,
       reconciliationSummaryQuery.error,
       reconciliationResultsQuery.error,
-      profileQuery.error,
-      caseDetailQuery.error,
     ].some((error) => error instanceof ApiError && [401, 403].includes(error.status));
 
     if (!authError) {
@@ -328,11 +329,9 @@ export function DashboardApp() {
     queryClient.clear();
     setToast("Session expired. Sign in again.");
   }, [
-    caseDetailQuery.error,
     casesQuery.error,
     dataSourcesQuery.error,
     ingestionQuery.error,
-    profileQuery.error,
     queryClient,
     rankingQuery.error,
     reconciliationResultsQuery.error,
@@ -397,7 +396,14 @@ export function DashboardApp() {
     mutationFn: (resultId: string) => openReconciliationCase(token as string, resultId),
     onSuccess: (record) => {
       setSelectedCaseId(record.id);
+      setCaseFilter(record.caseNumber);
       setActiveView("cases");
+      queryClient.setQueryData<CaseRecord[]>(["cases", token], (current) => {
+        if (!current) {
+          return [record];
+        }
+        return [record, ...current.filter((existing) => existing.id !== record.id)];
+      });
       queryClient.invalidateQueries({ queryKey: ["cases", token] });
       queryClient.invalidateQueries({ queryKey: ["reconciliation-results", token] });
       setToast(`Settlement case ${record.caseNumber} opened`);
@@ -820,15 +826,18 @@ function RiskQueueView({
     () => [
       {
         accessorKey: "taxpayerName",
-        cell: ({ row }) => (
-          <button
-            className="text-left font-semibold text-authority hover:underline"
-            onClick={() => onSelectTaxpayer(row.original.taxpayerId)}
-            type="button"
-          >
-            {row.original.taxpayerName}
-          </button>
-        ),
+        cell: ({ row }) =>
+          row.original.taxpayerId ? (
+            <button
+              className="text-left font-semibold text-authority hover:underline"
+              onClick={() => onSelectTaxpayer(row.original.taxpayerId as string)}
+              type="button"
+            >
+              {row.original.taxpayerName ?? "Unnamed taxpayer"}
+            </button>
+          ) : (
+            <span className="font-semibold text-ink">Public revenue channel</span>
+          ),
         header: "Taxpayer",
       },
       { accessorKey: "ruleCode", header: "Rule" },

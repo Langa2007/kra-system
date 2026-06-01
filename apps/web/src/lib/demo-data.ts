@@ -101,9 +101,9 @@ export const demoRanking: TaxGapRanking[] = demoSignals.map((signal, index) => (
   periodEnd: signal.periodEnd,
   periodStart: signal.periodStart,
   score: signal.estimatedGap * (signal.confidenceScore / 100),
-  taxpayerId: signal.taxpayerId,
-  taxpayerName: signal.taxpayerName,
-  taxpayerPin: signal.taxpayerPin,
+  taxpayerId: signal.taxpayerId ?? `demo-taxpayer-${index}`,
+  taxpayerName: signal.taxpayerName ?? "Public revenue channel",
+  taxpayerPin: signal.taxpayerPin ?? "No taxpayer PIN",
 }));
 
 export const demoSummary: TaxGapSummary[] = [
