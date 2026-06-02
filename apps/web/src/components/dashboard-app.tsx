@@ -42,6 +42,7 @@ import {
   createCase,
   downloadEvidencePackPdf,
   generateEvidencePack,
+  getAdminGovernance,
   getCaseDetail,
   getCases,
   getDataSources,
@@ -71,6 +72,7 @@ import {
 } from "@/lib/api";
 import {
   demoCaseDetail,
+  demoAdminGovernance,
   demoCases,
   demoDataSources,
   demoGraph,
@@ -90,6 +92,7 @@ import {
   demoUser,
 } from "@/lib/demo-data";
 import type {
+  AdminGovernanceDashboard,
   CaseDetail,
   CaseRecord,
   DataSource,
@@ -121,7 +124,8 @@ type ViewKey =
   | "notifications"
   | "ai-scoring"
   | "ingestion"
-  | "rules";
+  | "rules"
+  | "governance";
 
 const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = [
   { icon: Activity, key: "overview", label: "Overview" },
@@ -134,6 +138,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: BrainCircuit, key: "ai-scoring", label: "AI Scoring" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
+  { icon: ShieldCheck, key: "governance", label: "Governance" },
 ];
 
 function money(value: number | null | undefined) {
@@ -303,6 +308,12 @@ export function DashboardApp() {
     token,
     getModelVersions,
     demoModelVersions,
+  );
+  const adminGovernanceQuery = useAuthedQuery(
+    ["admin-governance", token],
+    token,
+    getAdminGovernance,
+    demoAdminGovernance,
   );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
@@ -856,6 +867,10 @@ export function DashboardApp() {
           ) : null}
 
           {activeView === "rules" ? <RulesView isAdmin={isAdmin} rules={rulesQuery.data} /> : null}
+
+          {activeView === "governance" ? (
+            <GovernanceView dashboard={adminGovernanceQuery.data} isAdmin={isAdmin} />
+          ) : null}
         </section>
       </div>
     </main>
@@ -2315,6 +2330,187 @@ function IngestionView({ dataSources, jobs }: { dataSources: DataSource[]; jobs:
                   <td className="px-4 py-3">{job.recordsValid.toLocaleString()}</td>
                   <td className="px-4 py-3">{job.recordsInvalid.toLocaleString()}</td>
                   <td className="px-4 py-3">{shortDate(job.startedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function GovernanceView({
+  dashboard,
+  isAdmin,
+}: {
+  dashboard: AdminGovernanceDashboard;
+  isAdmin: boolean;
+}) {
+  const overview = dashboard.overview;
+  return (
+    <div className="grid gap-5">
+      <Section
+        actions={
+          <span
+            className={`inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold ${isAdmin ? "border-assurance/30 bg-assurance/10 text-assurance" : "border-revenue/30 bg-revenue/10 text-revenue"}`}
+          >
+            {isAdmin ? (
+              <ShieldCheck size={17} aria-hidden="true" />
+            ) : (
+              <Lock size={17} aria-hidden="true" />
+            )}
+            {isAdmin ? "Admin controlled" : "Admin only"}
+          </span>
+        }
+        title="Administration Governance"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricLine label="Roles" value={overview.rolesCount.toLocaleString()} />
+          <MetricLine label="Permissions" value={overview.permissionsCount.toLocaleString()} />
+          <MetricLine
+            label="Role mappings"
+            value={overview.rolePermissionMappingsCount.toLocaleString()}
+          />
+          <MetricLine
+            label="Privacy complete"
+            value={`${overview.privacyChecklistCompletedCount}/${overview.privacyChecklistCount}`}
+          />
+          <MetricLine label="Data sources" value={overview.dataSourcesCount.toLocaleString()} />
+          <MetricLine label="Rules" value={overview.riskRulesCount.toLocaleString()} />
+          <MetricLine label="Model versions" value={overview.modelVersionsCount.toLocaleString()} />
+          <MetricLine
+            label="Retention policies"
+            value={overview.activeRetentionPoliciesCount.toLocaleString()}
+          />
+        </div>
+      </Section>
+
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <Section title="Role Permissions">
+          <div className="grid gap-3">
+            {dashboard.rolePermissions.map((role) => (
+              <article
+                className="rounded-md border border-line bg-white p-4 shadow-panel"
+                key={role.roleCode}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold">{role.roleName}</h3>
+                    <p className="text-sm text-gray-600">{role.roleCode}</p>
+                  </div>
+                  <Badge value={`${role.permissions.length} permissions`} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {role.permissions.map((permission) => (
+                    <span
+                      className="inline-flex min-h-7 items-center rounded-md border border-line bg-paper px-2 text-xs font-semibold text-gray-700"
+                      key={`${role.roleCode}-${permission}`}
+                    >
+                      {permission.replaceAll("_", " ")}
+                    </span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Export And MFA Controls">
+          <div className="grid gap-3">
+            <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold">Sensitive Export</h3>
+                <Badge value={dashboard.exportControls.requiredPermission} />
+              </div>
+              <p className="mt-2 text-sm text-gray-700">{dashboard.exportControls.policy}</p>
+              <p className="mt-3 text-sm font-semibold">
+                Roles: {dashboard.exportControls.allowedRoles.join(", ")}
+              </p>
+            </article>
+            <article className="rounded-md border border-line bg-white p-4 shadow-panel">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-semibold">{dashboard.keycloakMfa.provider} MFA</h3>
+                <Badge value={dashboard.keycloakMfa.status} />
+              </div>
+              <p className="mt-2 text-sm text-gray-700">
+                {dashboard.keycloakMfa.configurationPath}
+              </p>
+              <p className="mt-3 text-sm font-semibold">
+                Privileged roles: {dashboard.keycloakMfa.pilotRoles.join(", ")}
+              </p>
+            </article>
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Retention Policies">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase text-gray-600">
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Days</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.retentionPolicies.map((policy) => (
+                  <tr className="border-t border-line" key={policy.id}>
+                    <td className="px-4 py-3 font-medium">{policy.dataCategory}</td>
+                    <td className="px-4 py-3">{policy.retentionDays.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <Badge value={policy.active ? "ACTIVE" : "INACTIVE"} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section title="Privacy Checklist">
+          <div className="grid gap-3">
+            {dashboard.privacyImpactChecklist.map((item) => (
+              <article
+                className="rounded-md border border-line bg-white p-4 shadow-panel"
+                key={item.id}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">{item.dataCategory}</h3>
+                  <Badge value={item.completed ? "COMPLETED" : "OPEN"} />
+                </div>
+                <p className="mt-2 text-sm text-gray-700">{item.purpose}</p>
+                <p className="mt-2 text-xs font-semibold uppercase text-gray-600">
+                  {item.maskingRequired ? "Masking required" : "Operational log"}
+                </p>
+              </article>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Recent Audit Events">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs uppercase text-gray-600">
+                <th className="px-4 py-3">Action</th>
+                <th className="px-4 py-3">Actor</th>
+                <th className="px-4 py-3">Entity</th>
+                <th className="px-4 py-3">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dashboard.auditLogs.map((log) => (
+                <tr className="border-t border-line" key={log.id}>
+                  <td className="px-4 py-3">
+                    <Badge value={log.action} />
+                  </td>
+                  <td className="px-4 py-3">{log.actorEmail ?? "system"}</td>
+                  <td className="px-4 py-3">{log.entityType ?? "-"}</td>
+                  <td className="px-4 py-3">{shortDate(log.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

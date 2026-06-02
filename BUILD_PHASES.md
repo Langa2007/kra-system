@@ -1577,39 +1577,44 @@ Make the platform safe for serious pilot use.
 
 ### Scope
 
-- Role management.
-- Permission management.
-- Data-source administration.
-- Rule administration.
-- Model version administration.
-- Audit log viewer.
-- Data retention configuration.
-- Sensitive export controls.
-- MFA path through Keycloak.
-- Privacy impact checklist.
+- [x] Role management.
+- [x] Permission management.
+- [x] Data-source administration.
+- [x] Rule administration.
+- [x] Model version administration.
+- [x] Audit log viewer.
+- [x] Data retention configuration.
+- [x] Sensitive export controls.
+- [x] MFA path through Keycloak.
+- [x] Privacy impact checklist.
 
 ### Tech Stack
 
-- Spring Security
-- Keycloak for pilot/enterprise
-- PostgreSQL
-- Next.js admin UI
-- OWASP ZAP
-- Trivy or dependency scanner
+- [x] Spring Security
+- [x] Keycloak for pilot/enterprise
+- [x] PostgreSQL
+- [x] Next.js admin UI
+- [ ] OWASP ZAP (blocked: Docker image pull timed out before a baseline scan could run)
+- [x] Trivy or dependency scanner
 
 ### Database Work
 
 Use:
 
-- app_users
-- roles
-- user_roles
-- audit_logs
-- data_sources
-- risk_rules
-- model_versions
+- [x] app_users
+- [x] roles
+- [x] user_roles
+- [x] audit_logs
+- [x] data_sources
+- [x] risk_rules
+- [x] model_versions
 
 Add optional permissions:
+
+- [x] permissions
+- [x] role_permissions
+- [x] data_retention_policies
+- [x] privacy_impact_items
 
 ```sql
 CREATE TABLE permissions (
@@ -1636,12 +1641,13 @@ CREATE TABLE data_retention_policies (
 
 ### Testing Gate
 
-- Unauthorized users cannot access restricted APIs.
-- Role tests cover executive, officer, admin, analyst, and auditor personas.
-- Audit logs cannot be edited through normal app APIs.
-- Bulk export is permission-controlled.
-- Security scan has no critical unresolved findings.
-- Privacy checklist is completed for every data category.
+- [x] Unauthorized users cannot access restricted APIs.
+- [x] Role tests cover executive, officer, admin, analyst, and auditor personas.
+- [x] Audit logs cannot be edited through normal app APIs.
+- [x] Bulk export is permission-controlled.
+- [x] Dependency scanner has no critical unresolved findings.
+- [ ] OWASP ZAP baseline has no critical unresolved findings.
+- [x] Privacy checklist is completed for every data category.
 
 ### Exit Criteria
 

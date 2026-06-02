@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL = process.env.KRA_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE_URL =
+  process.env.KRA_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080";
+const API_TIMEOUT_MS = 10000;
 
 type RouteContext = {
   params: {
@@ -28,6 +30,8 @@ async function proxy(request: NextRequest, context: RouteContext) {
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   try {
     response = await fetch(target, {
       body: ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer(),
@@ -35,12 +39,15 @@ async function proxy(request: NextRequest, context: RouteContext) {
       headers,
       method: request.method,
       redirect: "manual",
+      signal: controller.signal,
     });
   } catch {
     return NextResponse.json(
       { message: "Backend API is unavailable", target: target.origin },
       { status: 503 },
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   const responseHeaders = new Headers(response.headers);

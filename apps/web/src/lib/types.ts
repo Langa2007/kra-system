@@ -315,6 +315,101 @@ export type GraphExtractionRun = {
   highRiskClustersDetected: number;
 };
 
+export type AdminGovernanceOverview = {
+  usersCount: number;
+  rolesCount: number;
+  permissionsCount: number;
+  rolePermissionMappingsCount: number;
+  dataSourcesCount: number;
+  riskRulesCount: number;
+  modelVersionsCount: number;
+  auditLogsCount: number;
+  activeRetentionPoliciesCount: number;
+  privacyChecklistCount: number;
+  privacyChecklistCompletedCount: number;
+  privacyChecklistCompleted: boolean;
+  keycloakMfaStatus: string;
+};
+
+export type AdminRole = {
+  code: string;
+  name: string;
+  description: string;
+  userCount: number;
+  permissionCount: number;
+};
+
+export type AdminPermission = {
+  code: string;
+  description: string;
+  roleCount: number;
+};
+
+export type RolePermission = {
+  roleCode: string;
+  roleName: string;
+  permissions: string[];
+};
+
+export type AuditLogRecord = {
+  id: string;
+  action: string;
+  actorEmail: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  details: string;
+  createdAt: string;
+};
+
+export type DataRetentionPolicy = {
+  id: string;
+  dataCategory: string;
+  retentionDays: number;
+  policyReason: string;
+  active: boolean;
+  createdAt: string;
+};
+
+export type PrivacyImpactItem = {
+  id: string;
+  dataCategory: string;
+  purpose: string;
+  lawfulBasis: string;
+  dataMinimizationNote: string;
+  maskingRequired: boolean;
+  completed: boolean;
+  createdAt: string;
+};
+
+export type ExportControl = {
+  requiredPermission: string;
+  allowedRoles: string[];
+  policy: string;
+  bulkExportPermissionControlled: boolean;
+};
+
+export type KeycloakMfaPath = {
+  provider: string;
+  status: string;
+  configurationPath: string;
+  pilotRoles: string[];
+  mfaRequiredForPrivilegedRoles: boolean;
+};
+
+export type AdminGovernanceDashboard = {
+  overview: AdminGovernanceOverview;
+  roles: AdminRole[];
+  permissions: AdminPermission[];
+  rolePermissions: RolePermission[];
+  auditLogs: AuditLogRecord[];
+  retentionPolicies: DataRetentionPolicy[];
+  privacyImpactChecklist: PrivacyImpactItem[];
+  exportControls: ExportControl;
+  keycloakMfa: KeycloakMfaPath;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

@@ -1,4 +1,5 @@
 import type {
+  AdminGovernanceDashboard,
   CaseDetail,
   EvidencePack,
   GraphExtractionRun,
@@ -251,4 +252,8 @@ export function runRiskScoring(token: string) {
     method: "POST",
     token,
   });
+}
+
+export function getAdminGovernance(token: string | null) {
+  return request<AdminGovernanceDashboard>("/admin/governance/dashboard", { token });
 }
