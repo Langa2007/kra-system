@@ -27,6 +27,7 @@ import {
   LogOut,
   Mail,
   MessageSquareReply,
+  Network,
   Search,
   Send,
   Settings2,
@@ -56,11 +57,13 @@ import {
   getRules,
   getTaxGapRanking,
   getTaxGapSummary,
+  getTaxpayerGraph,
   getTaxpayerProfile,
   getMe,
   login,
   openReconciliationCase,
   recordNotificationResponse,
+  runGraphExtraction,
   runReconciliation,
   runRiskScoring,
   sendCaseNudge,
@@ -70,6 +73,7 @@ import {
   demoCaseDetail,
   demoCases,
   demoDataSources,
+  demoGraph,
   demoIngestionJobs,
   demoNotificationTemplates,
   demoNotifications,
@@ -89,6 +93,7 @@ import type {
   CaseDetail,
   CaseRecord,
   DataSource,
+  GraphEdge,
   IngestionJob,
   ModelPrediction,
   ModelVersion,
@@ -101,6 +106,7 @@ import type {
   RuleDefinition,
   TaxGapRanking,
   TaxGapSummary,
+  TaxpayerGraph,
   TaxpayerProfile,
   UserSummary,
 } from "@/lib/types";
@@ -316,6 +322,11 @@ export function DashboardApp() {
     queryFn: () => getTaxpayerProfile(token as string, selectedTaxpayerId),
     queryKey: ["taxpayer-profile", token, selectedTaxpayerId],
   });
+  const taxpayerGraphQuery = useQuery({
+    enabled: Boolean(token && liveTaxpayerSelected),
+    queryFn: () => getTaxpayerGraph(token as string, selectedTaxpayerId),
+    queryKey: ["taxpayer-graph", token, selectedTaxpayerId],
+  });
 
   const caseDetailQuery = useQuery({
     enabled: Boolean(token && liveCaseSelected),
@@ -329,6 +340,7 @@ export function DashboardApp() {
   const cases = casesQuery.data;
   const caseDetail = caseDetailQuery.data ?? detailFallback(cases, selectedCaseId);
   const profile = profileQuery.data ?? profileFallback(rankingQuery.data, selectedTaxpayerId);
+  const taxpayerGraph = taxpayerGraphQuery.data ?? graphFallback(profile, selectedTaxpayerId);
   const selectedSignal =
     riskSignals.find((signal) => signal.id === selectedSignalId) ?? riskSignals[0];
   const selectedCase = cases.find((record) => record.id === selectedCaseId) ?? cases[0];
@@ -538,6 +550,27 @@ export function DashboardApp() {
       setToast(`AI scoring complete: ${run.predictionsCreated} predictions`);
     },
   });
+  const graphExtractionMutation = useMutation({
+    mutationFn: () => runGraphExtraction(token as string),
+    onError: (error) => {
+      setToast(
+        error instanceof Error
+          ? `Graph extraction failed: ${error.message}`
+          : "Graph extraction failed.",
+      );
+    },
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: ["taxpayer-graph", token] });
+      const touched =
+        run.invoiceTradeEdges +
+        run.withholdingFlowEdges +
+        run.sharedIdentifierEdges +
+        run.permitEdges +
+        run.paymentChannelEdges +
+        run.importActivityEdges;
+      setToast(`Graph refreshed: ${touched} relationship edges touched`);
+    },
+  });
 
   function handleLogout() {
     window.localStorage.removeItem("kra-token");
@@ -677,8 +710,18 @@ export function DashboardApp() {
 
           {activeView === "taxpayers" ? (
             <TaxpayerView
+              graph={taxpayerGraph}
+              isGraphPending={graphExtractionMutation.isPending}
+              isLiveSession={Boolean(token)}
               onSearch={setTaxpayerSearch}
               onSelectTaxpayer={setSelectedTaxpayerId}
+              onRefreshGraph={() => {
+                if (token) {
+                  graphExtractionMutation.mutate();
+                } else {
+                  setToast("Sign in to refresh live graph intelligence.");
+                }
+              }}
               profile={profile}
               ranking={rankingQuery.data}
               search={taxpayerSearch}
@@ -1097,14 +1140,22 @@ function RiskQueueView({
 }
 
 function TaxpayerView({
+  graph,
+  isGraphPending,
+  isLiveSession,
   onSearch,
+  onRefreshGraph,
   onSelectTaxpayer,
   profile,
   ranking,
   search,
   selectedTaxpayerId,
 }: {
+  graph: TaxpayerGraph;
+  isGraphPending: boolean;
+  isLiveSession: boolean;
   onSearch: (value: string) => void;
+  onRefreshGraph: () => void;
   onSelectTaxpayer: (taxpayerId: string) => void;
   profile: TaxpayerProfile;
   ranking: TaxGapRanking[];
@@ -1151,7 +1202,21 @@ function TaxpayerView({
         </div>
       </Section>
 
-      <Section title="Taxpayer Profile">
+      <Section
+        actions={
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-authority bg-white px-3 text-sm font-semibold text-authority transition hover:bg-authority/5 disabled:cursor-not-allowed disabled:border-line disabled:text-gray-500"
+            disabled={isGraphPending || !isLiveSession}
+            onClick={onRefreshGraph}
+            title={isLiveSession ? "Refresh graph intelligence" : "Sign in to refresh graph"}
+            type="button"
+          >
+            {isGraphPending ? <Loader2 className="animate-spin" size={16} /> : <Network size={16} />}
+            {isGraphPending ? "Refreshing" : "Refresh graph"}
+          </button>
+        }
+        title="Taxpayer Profile"
+      >
         <div className="grid gap-4">
           <div>
             <p className="text-sm font-semibold uppercase text-authority">{profile.kraPin}</p>
@@ -1181,8 +1246,134 @@ function TaxpayerView({
               title="Relationships"
             />
           </div>
+          <GraphPanel graph={graph} rootTaxpayerId={profile.taxpayerId} />
         </div>
       </Section>
+    </div>
+  );
+}
+
+function GraphPanel({ graph, rootTaxpayerId }: { graph: TaxpayerGraph; rootTaxpayerId: string }) {
+  const root = graph.nodes.find((node) => node.id === rootTaxpayerId) ?? graph.nodes[0];
+  const relatedNodes = graph.nodes.filter((node) => node.id !== root?.id).slice(0, 6);
+  const strongestEdges = [...graph.edges]
+    .sort((left, right) => Number(right.weight) - Number(left.weight))
+    .slice(0, 6);
+  const midpoint = Math.ceil(relatedNodes.length / 2);
+  const columns = [relatedNodes.slice(0, midpoint), relatedNodes.slice(midpoint)];
+
+  if (!root) {
+    return (
+      <div className="rounded-md border border-line bg-paper p-4">
+        <p className="text-sm font-semibold">Relationship graph</p>
+        <p className="mt-2 text-sm text-gray-700">No graph records found for this taxpayer.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-[1fr_0.9fr]">
+      <div className="rounded-md border border-line bg-paper p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">Relationship graph</p>
+            <p className="text-xs text-gray-600">
+              {graph.nodes.length} nodes / {graph.edges.length} edges
+            </p>
+          </div>
+          <Badge value={`${graph.highRiskClusters.length} HIGH RISK`} />
+        </div>
+        <div className="grid min-h-[320px] grid-cols-1 items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(150px,190px)_minmax(0,1fr)]">
+          <GraphNodeColumn nodes={columns[0]} />
+          <div className="rounded-md border-2 border-authority bg-white p-3 text-center shadow-panel">
+            <p className="break-words text-sm font-semibold text-authority">{root.label}</p>
+            <p className="mt-2 text-xs font-semibold uppercase text-gray-600">
+              {graphTypeLabel(root.nodeType)}
+            </p>
+            <p className="mt-3 text-2xl font-semibold">{percent(root.riskScore)}</p>
+            <p className="text-xs text-gray-600">risk score</p>
+          </div>
+          <GraphNodeColumn nodes={columns[1]} />
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <div className="rounded-md border border-line bg-paper p-3">
+          <h3 className="text-sm font-semibold">Strongest links</h3>
+          <div className="mt-3 grid gap-2">
+            {strongestEdges.length ? (
+              strongestEdges.map((edge) => <GraphEdgeItem edge={edge} key={edge.id} />)
+            ) : (
+              <p className="text-sm text-gray-700">No relationship edges found.</p>
+            )}
+          </div>
+        </div>
+        <div className="rounded-md border border-line bg-paper p-3">
+          <h3 className="text-sm font-semibold">High-risk clusters</h3>
+          <div className="mt-3 grid gap-2">
+            {graph.highRiskClusters.length ? (
+              graph.highRiskClusters.slice(0, 3).map((cluster) => (
+                <div className="rounded-md border border-exposure/20 bg-white p-3" key={cluster.clusterKey}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="break-words text-sm font-semibold">
+                      {cluster.sourceTaxpayerName} / {cluster.targetTaxpayerName}
+                    </p>
+                    <Badge value={graphTypeLabel(cluster.edgeType)} />
+                  </div>
+                  <p className="mt-2 text-xs text-gray-700">
+                    {cluster.reasons.join(" / ")}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-700">No high-risk clusters found.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GraphNodeColumn({ nodes }: { nodes: TaxpayerGraph["nodes"] }) {
+  return (
+    <div className="grid gap-2">
+      {nodes.length ? (
+        nodes.map((node) => (
+          <div className="rounded-md border border-line bg-white p-3 shadow-panel" key={node.id}>
+            <p className="break-words text-sm font-semibold">{node.label}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase text-gray-600">
+                {graphTypeLabel(node.nodeType)}
+              </span>
+              <span className="text-sm font-semibold text-authority">{percent(node.riskScore)}</span>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="rounded-md border border-dashed border-line bg-white p-3 text-sm text-gray-700">
+          No related nodes
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GraphEdgeItem({ edge }: { edge: GraphEdge }) {
+  return (
+    <div className="rounded-md border border-line bg-white p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="break-words text-sm font-semibold">
+          {edge.sourceLabel} / {edge.targetLabel}
+        </p>
+        <span className="text-sm font-semibold text-authority">{Number(edge.weight).toFixed(1)}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <Badge value={graphTypeLabel(edge.edgeType)} />
+        <span className="text-xs font-semibold uppercase text-gray-600">
+          {graphTypeLabel(edge.source)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -2357,6 +2548,14 @@ function featureLabel(value: string) {
     .trim();
 }
 
+function graphTypeLabel(value: string) {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function scoringErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if ([401, 403].includes(error.status)) {
@@ -2399,5 +2598,33 @@ function profileFallback(ranking: TaxGapRanking[], selectedTaxpayerId: string): 
     kraPin: ranked.taxpayerPin,
     legalName: ranked.taxpayerName,
     taxpayerId: ranked.taxpayerId,
+  };
+}
+
+function graphFallback(profile: TaxpayerProfile, selectedTaxpayerId: string): TaxpayerGraph {
+  const rootId = profile.taxpayerId || selectedTaxpayerId;
+
+  if (!rootId || rootId === demoGraph.taxpayerId) {
+    return demoGraph;
+  }
+
+  return {
+    ...demoGraph,
+    highRiskClusters: demoGraph.highRiskClusters.map((cluster) => ({
+      ...cluster,
+      sourceTaxpayerId: rootId,
+      sourceTaxpayerName: profile.legalName,
+    })),
+    nodes: demoGraph.nodes.map((node) =>
+      node.id === demoGraph.taxpayerId ? { ...node, id: rootId, label: profile.legalName } : node,
+    ),
+    edges: demoGraph.edges.map((edge) => ({
+      ...edge,
+      sourceId: edge.sourceId === demoGraph.taxpayerId ? rootId : edge.sourceId,
+      sourceLabel: edge.sourceId === demoGraph.taxpayerId ? profile.legalName : edge.sourceLabel,
+      targetId: edge.targetId === demoGraph.taxpayerId ? rootId : edge.targetId,
+      targetLabel: edge.targetId === demoGraph.taxpayerId ? profile.legalName : edge.targetLabel,
+    })),
+    taxpayerId: rootId,
   };
 }

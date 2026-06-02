@@ -10,12 +10,12 @@ services:
     environment:
       DB_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kra system}"
       DB_USERNAME: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-kra-local-postgres}
       SERVER_PORT: 8080
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
+      JWT_SECRET: ${JWT_SECRET:-kra-local-jwt-secret-replace-outside-dev}
       JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
-      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:?Set DEFAULT_ADMIN_EMAIL in your .env file}
-      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Set DEFAULT_ADMIN_PASSWORD in your .env file}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:-admin@example.test}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-kra-local-admin-password}
       ANALYTICS_RISK_SCORING_URL: ${ANALYTICS_RISK_SCORING_URL:-http://host.docker.internal:8000/risk-scoring/train}
     ports:
       - "${SERVER_PORT:-8080}:8080"
@@ -26,7 +26,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kra system}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kra-local-postgres}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -51,6 +51,27 @@ services:
       timeout: 5s
       retries: 5
 
+  neo4j:
+    image: neo4j:5-community
+    container_name: kra-system-neo4j
+    environment:
+      NEO4J_AUTH: ${LOCAL_NEO4J_USER:-neo4j}/${LOCAL_NEO4J_PASSWORD:-kra-local-neo4j}
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    volumes:
+      - kra_neo4j_data:/data
+      - kra_neo4j_logs:/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'cypher-shell -u "${LOCAL_NEO4J_USER:-neo4j}" -p "${LOCAL_NEO4J_PASSWORD:-kra-local-neo4j}" "RETURN 1"',
+        ]
+      interval: 10s
+      timeout: 15s
+      retries: 20
+
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: kra-system-minio
@@ -72,4 +93,6 @@ services:
 volumes:
   kra_postgres_data:
   kra_redis_data:
+  kra_neo4j_data:
+  kra_neo4j_logs:
   kra_minio_data:

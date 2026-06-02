@@ -262,6 +262,59 @@ export type RiskScoringRun = {
   combinedScoresCreated: number;
 };
 
+export type GraphNode = {
+  id: string;
+  nodeType: string;
+  label: string;
+  riskScore: number;
+};
+
+export type GraphEdge = {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  sourceLabel: string;
+  targetType: string;
+  targetId: string;
+  targetLabel: string;
+  edgeType: string;
+  weight: number;
+  source: string;
+  evidence: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type HighRiskCluster = {
+  clusterKey: string;
+  sourceTaxpayerId: string;
+  sourceTaxpayerName: string;
+  targetTaxpayerId: string;
+  targetTaxpayerName: string;
+  edgeType: string;
+  edgeWeight: number;
+  sourceRiskScore: number;
+  targetRiskScore: number;
+  reasons: string[];
+};
+
+export type TaxpayerGraph = {
+  taxpayerId: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  highRiskClusters: HighRiskCluster[];
+};
+
+export type GraphExtractionRun = {
+  taxpayerRelationshipEdges: number;
+  invoiceTradeEdges: number;
+  withholdingFlowEdges: number;
+  sharedIdentifierEdges: number;
+  permitEdges: number;
+  paymentChannelEdges: number;
+  importActivityEdges: number;
+  highRiskClustersDetected: number;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

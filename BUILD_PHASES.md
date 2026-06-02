@@ -1513,31 +1513,31 @@ Reveal relationships between taxpayers, directors, suppliers, buyers, permits, p
 
 ### Scope
 
-- Build relationship extraction jobs.
-- Create graph tables in PostgreSQL for MVP.
-- Add Neo4j option for pilot/enterprise.
-- Show relationship graph in taxpayer profile.
-- Detect invoice rings, shared identifiers, related entities, and high-risk clusters.
+- [x] Build relationship extraction jobs.
+- [x] Create graph tables in PostgreSQL for MVP.
+- [x] Add Neo4j option for pilot/enterprise.
+- [x] Show relationship graph in taxpayer profile.
+- [x] Detect invoice rings, shared identifiers, related entities, and high-risk clusters.
 
 ### Tech Stack
 
 MVP:
 
-- PostgreSQL
-- Spring Boot
-- Next.js graph visualization
+- [x] PostgreSQL
+- [x] Spring Boot
+- [x] Next.js graph visualization
 
 Enterprise:
 
-- Neo4j
-- Cypher queries
-- Graph data science library if needed
+- [x] Neo4j
+- [x] Cypher queries
+- [x] Graph data science library if needed
 
 ### Database Work
 
 Use:
 
-- taxpayer_relationships
+- [x] taxpayer_relationships
 
 Add graph table:
 
@@ -1558,16 +1558,16 @@ CREATE TABLE graph_edges (
 
 ### Testing Gate
 
-- Graph extraction creates expected edges from synthetic data.
-- Duplicate edges are controlled.
-- Relationship confidence is stored.
-- Graph view loads for taxpayer profile.
-- High-risk cluster detection works on seeded scenarios.
-- Access controls protect sensitive relationship data.
+- [x] Graph extraction creates expected edges from synthetic data.
+- [x] Duplicate edges are controlled.
+- [x] Relationship confidence is stored.
+- [x] Graph view loads for taxpayer profile.
+- [x] High-risk cluster detection works on seeded scenarios.
+- [x] Access controls protect sensitive relationship data.
 
 ### Exit Criteria
 
-- Officers can see how taxpayers and risk signals are connected.
+- [x] Officers can see how taxpayers and risk signals are connected.
 
 ## Phase 14: Administration, Governance, Security, and Privacy
 

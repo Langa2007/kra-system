@@ -1,6 +1,7 @@
 import type {
   CaseDetail,
   EvidencePack,
+  GraphExtractionRun,
   CaseRecord,
   DataSource,
   IngestionJob,
@@ -18,6 +19,7 @@ import type {
   RuleDefinition,
   TaxGapRanking,
   TaxGapSummary,
+  TaxpayerGraph,
   TaxpayerProfile,
 } from "@/lib/types";
 
@@ -144,6 +146,17 @@ export async function downloadEvidencePackPdf(token: string, caseId: string, pac
 
 export function getTaxpayerProfile(token: string | null, taxpayerId: string) {
   return request<TaxpayerProfile>(`/taxpayers/${taxpayerId}/profile`, { token });
+}
+
+export function getTaxpayerGraph(token: string | null, taxpayerId: string) {
+  return request<TaxpayerGraph>(`/taxpayers/${taxpayerId}/graph`, { token });
+}
+
+export function runGraphExtraction(token: string) {
+  return request<GraphExtractionRun>("/graph/jobs", {
+    method: "POST",
+    token,
+  });
 }
 
 export function getIngestionJobs(token: string | null) {
