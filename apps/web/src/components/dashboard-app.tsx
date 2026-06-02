@@ -41,14 +41,18 @@ import {
   addCaseNote,
   createCase,
   downloadEvidencePackPdf,
+  downloadTaxGapBySectorExport,
   generateEvidencePack,
   getAdminGovernance,
+  getAuditPipeline,
   getCaseDetail,
   getCases,
   getDataSources,
   getIngestionJobs,
   getNotificationTemplates,
   getNotifications,
+  getOfficerProductivity,
+  getRevenueRecovery,
   getModelPredictions,
   getModelVersions,
   getRiskScoringDashboard,
@@ -56,6 +60,8 @@ import {
   getReconciliationSummary,
   getRiskSignals,
   getRules,
+  getTaxGapByRegion,
+  getTaxGapBySector,
   getTaxGapRanking,
   getTaxGapSummary,
   getTaxpayerGraph,
@@ -73,12 +79,15 @@ import {
 import {
   demoCaseDetail,
   demoAdminGovernance,
+  demoAuditPipeline,
   demoCases,
   demoDataSources,
   demoGraph,
   demoIngestionJobs,
   demoNotificationTemplates,
   demoNotifications,
+  demoOfficerProductivity,
+  demoRevenueRecovery,
   demoModelPredictions,
   demoModelVersions,
   demoProfile,
@@ -89,10 +98,13 @@ import {
   demoRules,
   demoSignals,
   demoSummary,
+  demoTaxGapByRegion,
+  demoTaxGapBySector,
   demoUser,
 } from "@/lib/demo-data";
 import type {
   AdminGovernanceDashboard,
+  AuditPipelineReport,
   CaseDetail,
   CaseRecord,
   DataSource,
@@ -102,11 +114,15 @@ import type {
   ModelVersion,
   NotificationRecord,
   NotificationTemplate,
+  OfficerProductivityReport,
   ReconciliationResult,
   ReconciliationSummary,
+  RevenueRecoveryReport,
   RiskScoringDashboard,
   RiskSignal,
   RuleDefinition,
+  TaxGapByRegionReport,
+  TaxGapBySectorReport,
   TaxGapRanking,
   TaxGapSummary,
   TaxpayerGraph,
@@ -123,6 +139,7 @@ type ViewKey =
   | "settlements"
   | "notifications"
   | "ai-scoring"
+  | "reports"
   | "ingestion"
   | "rules"
   | "governance";
@@ -136,6 +153,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: BadgeCheck, key: "settlements", label: "Settlements" },
   { icon: Mail, key: "notifications", label: "Nudges" },
   { icon: BrainCircuit, key: "ai-scoring", label: "AI Scoring" },
+  { icon: FileText, key: "reports", label: "Reports" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
   { icon: ShieldCheck, key: "governance", label: "Governance" },
@@ -314,6 +332,36 @@ export function DashboardApp() {
     token,
     getAdminGovernance,
     demoAdminGovernance,
+  );
+  const taxGapBySectorQuery = useAuthedQuery(
+    ["reports-tax-gap-sector", token],
+    token,
+    getTaxGapBySector,
+    demoTaxGapBySector,
+  );
+  const taxGapByRegionQuery = useAuthedQuery(
+    ["reports-tax-gap-region", token],
+    token,
+    getTaxGapByRegion,
+    demoTaxGapByRegion,
+  );
+  const officerProductivityQuery = useAuthedQuery(
+    ["reports-officer-productivity", token],
+    token,
+    getOfficerProductivity,
+    demoOfficerProductivity,
+  );
+  const revenueRecoveryQuery = useAuthedQuery(
+    ["reports-revenue-recovery", token],
+    token,
+    getRevenueRecovery,
+    demoRevenueRecovery,
+  );
+  const auditPipelineQuery = useAuthedQuery(
+    ["reports-audit-pipeline", token],
+    token,
+    getAuditPipeline,
+    demoAuditPipeline,
   );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
@@ -560,6 +608,26 @@ export function DashboardApp() {
       queryClient.invalidateQueries({ queryKey: ["model-versions", token] });
       setToast(`AI scoring complete: ${run.predictionsCreated} predictions`);
     },
+  });
+
+  const reportExportMutation = useMutation({
+    mutationFn: async (format: "csv" | "xlsx" | "pdf") => {
+      if (!token) {
+        throw new Error("Sign in to export live reports.");
+      }
+      const blob = await downloadTaxGapBySectorExport(token, format);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tax-gap-by-sector.${format}`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      return format;
+    },
+    onError: (error) => {
+      setToast(error instanceof Error ? error.message : "Report export failed.");
+    },
+    onSuccess: (format) => setToast(`Tax gap by sector ${format.toUpperCase()} exported.`),
   });
   const graphExtractionMutation = useMutation({
     mutationFn: () => runGraphExtraction(token as string),
@@ -862,6 +930,25 @@ export function DashboardApp() {
             />
           ) : null}
 
+          {activeView === "reports" ? (
+            <ReportsView
+              auditPipeline={auditPipelineQuery.data}
+              isExporting={reportExportMutation.isPending}
+              isLiveSession={Boolean(token)}
+              officerProductivity={officerProductivityQuery.data}
+              onExport={(format) => {
+                if (token) {
+                  reportExportMutation.mutate(format);
+                } else {
+                  setToast("Sign in to export live reports.");
+                }
+              }}
+              revenueRecovery={revenueRecoveryQuery.data}
+              taxGapByRegion={taxGapByRegionQuery.data}
+              taxGapBySector={taxGapBySectorQuery.data}
+            />
+          ) : null}
+
           {activeView === "ingestion" ? (
             <IngestionView dataSources={dataSourcesQuery.data} jobs={ingestionQuery.data} />
           ) : null}
@@ -1052,6 +1139,277 @@ function OverviewView({
           </div>
         </Section>
       </div>
+    </div>
+  );
+}
+
+function ReportsView({
+  auditPipeline,
+  isExporting,
+  isLiveSession,
+  officerProductivity,
+  onExport,
+  revenueRecovery,
+  taxGapByRegion,
+  taxGapBySector,
+}: {
+  auditPipeline: AuditPipelineReport[];
+  isExporting: boolean;
+  isLiveSession: boolean;
+  officerProductivity: OfficerProductivityReport[];
+  onExport: (format: "csv" | "xlsx" | "pdf") => void;
+  revenueRecovery: RevenueRecoveryReport[];
+  taxGapByRegion: TaxGapByRegionReport[];
+  taxGapBySector: TaxGapBySectorReport[];
+}) {
+  const [chartReady, setChartReady] = useState(false);
+  const [taxHeadFilter, setTaxHeadFilter] = useState("ALL");
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [periodFilter, setPeriodFilter] = useState("ALL");
+  const [officerFilter, setOfficerFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
+
+  const taxHeads = uniqueOptions([
+    ...taxGapBySector.map((row) => row.taxHead),
+    ...taxGapByRegion.map((row) => row.taxHead),
+    ...revenueRecovery.map((row) => row.taxHead),
+  ]);
+  const periods = uniqueOptions(revenueRecovery.map((row) => row.period));
+  const officers = uniqueOptions(officerProductivity.map((row) => row.officerName));
+  const statuses = uniqueOptions(auditPipeline.map((row) => row.status));
+
+  const filteredSector = taxGapBySector.filter(
+    (row) =>
+      (taxHeadFilter === "ALL" || row.taxHead === taxHeadFilter) &&
+      row.sectorName.toLowerCase().includes(sectorFilter.toLowerCase()),
+  );
+  const filteredRegion = taxGapByRegion.filter(
+    (row) =>
+      (taxHeadFilter === "ALL" || row.taxHead === taxHeadFilter) &&
+      row.region.toLowerCase().includes(regionFilter.toLowerCase()),
+  );
+  const filteredRecovery = revenueRecovery.filter(
+    (row) =>
+      (taxHeadFilter === "ALL" || row.taxHead === taxHeadFilter) &&
+      (periodFilter === "ALL" || row.period === periodFilter),
+  );
+  const filteredOfficers = officerProductivity.filter(
+    (row) => officerFilter === "ALL" || row.officerName === officerFilter,
+  );
+  const filteredPipeline = auditPipeline.filter(
+    (row) => statusFilter === "ALL" || row.status === statusFilter,
+  );
+
+  const totalGap = filteredSector.reduce((sum, row) => sum + Number(row.estimatedGap), 0);
+  const totalRecoverable = filteredSector.reduce(
+    (sum, row) => sum + Number(row.estimatedRecoverableTax),
+    0,
+  );
+  const collected = filteredRecovery.reduce((sum, row) => sum + Number(row.collectedAmount), 0);
+  const openCases = filteredPipeline.reduce((sum, row) => sum + Number(row.caseCount), 0);
+
+  const sectorChart = filteredSector.slice(0, 8).map((row) => ({
+    gap: row.estimatedGap,
+    recoverable: row.estimatedRecoverableTax,
+    sector: row.sectorName,
+  }));
+  const regionChart = filteredRegion.slice(0, 8).map((row) => ({
+    gap: row.estimatedGap,
+    recoverable: row.estimatedRecoverableTax,
+    region: row.region,
+  }));
+
+  const sectorColumns = useMemo<ColumnDef<TaxGapBySectorReport>[]>(
+    () => [
+      { accessorKey: "sectorName", header: "Sector" },
+      { accessorKey: "taxHead", header: "Tax head" },
+      { accessorKey: "taxpayerCount", header: "Taxpayers" },
+      {
+        accessorKey: "estimatedGap",
+        cell: ({ row }) => money(row.original.estimatedGap),
+        header: "Gap",
+      },
+      {
+        accessorKey: "estimatedRecoverableTax",
+        cell: ({ row }) => money(row.original.estimatedRecoverableTax),
+        header: "Recoverable",
+      },
+    ],
+    [],
+  );
+  const pipelineColumns = useMemo<ColumnDef<AuditPipelineReport>[]>(
+    () => [
+      {
+        accessorKey: "status",
+        cell: ({ row }) => <Badge value={row.original.status} />,
+        header: "Status",
+      },
+      { accessorKey: "caseCount", header: "Cases" },
+      {
+        accessorKey: "estimatedRecoverableAmount",
+        cell: ({ row }) => money(row.original.estimatedRecoverableAmount),
+        header: "Recoverable",
+      },
+      {
+        accessorKey: "collectedAmount",
+        cell: ({ row }) => money(row.original.collectedAmount),
+        header: "Collected",
+      },
+    ],
+    [],
+  );
+  const officerColumns = useMemo<ColumnDef<OfficerProductivityReport>[]>(
+    () => [
+      { accessorKey: "officerName", header: "Officer" },
+      { accessorKey: "assignedCases", header: "Assigned" },
+      { accessorKey: "openCases", header: "Open" },
+      { accessorKey: "closedCases", header: "Closed" },
+      {
+        accessorKey: "collectedAmount",
+        cell: ({ row }) => money(row.original.collectedAmount),
+        header: "Collected",
+      },
+      {
+        accessorKey: "averageCaseAgeDays",
+        cell: ({ row }) => `${Number(row.original.averageCaseAgeDays).toFixed(1)} days`,
+        header: "Avg age",
+      },
+    ],
+    [],
+  );
+
+  return (
+    <div className="space-y-5">
+      <Section
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {(["csv", "xlsx", "pdf"] as const).map((format) => (
+              <button
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold hover:border-authority hover:text-authority disabled:opacity-50"
+                disabled={isExporting}
+                key={format}
+                onClick={() => onExport(format)}
+                type="button"
+              >
+                <FileText size={16} aria-hidden="true" />
+                {format.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        }
+        title="Executive Reports"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricLine label="Estimated gap" value={money(totalGap)} />
+          <MetricLine label="Recoverable tax" value={money(totalRecoverable)} />
+          <MetricLine label="Collected" value={money(collected)} />
+          <MetricLine label="Pipeline cases" value={String(openCases)} />
+        </div>
+        {!isLiveSession ? (
+          <p className="mt-3 text-sm font-medium text-gray-600">
+            Demo figures are shown until a live API session is connected.
+          </p>
+        ) : null}
+      </Section>
+
+      <Section title="Report Filters">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <SelectFilter
+            label="Tax head"
+            onChange={setTaxHeadFilter}
+            options={taxHeads}
+            value={taxHeadFilter}
+          />
+          <SearchInput label="Sector" onChange={setSectorFilter} value={sectorFilter} />
+          <SearchInput label="Region" onChange={setRegionFilter} value={regionFilter} />
+          <SelectFilter
+            label="Period"
+            onChange={setPeriodFilter}
+            options={periods}
+            value={periodFilter}
+          />
+          <SelectFilter
+            label="Officer"
+            onChange={setOfficerFilter}
+            options={officers}
+            value={officerFilter}
+          />
+          <SelectFilter
+            label="Status"
+            onChange={setStatusFilter}
+            options={statuses}
+            value={statusFilter}
+          />
+        </div>
+      </Section>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Sector Risk">
+          <div className="h-80 min-w-0 overflow-hidden">
+            {chartReady && sectorChart.length ? (
+              <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
+                <BarChart data={sectorChart} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="sector" tickLine={false} />
+                  <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="gap" fill="#a33b2f" name="Estimated gap" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="recoverable"
+                    fill="#245c4f"
+                    name="Recoverable"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState label="No sector report rows match the filters." />
+            )}
+          </div>
+        </Section>
+
+        <Section title="Regional Risk">
+          <div className="h-80 min-w-0 overflow-hidden">
+            {chartReady && regionChart.length ? (
+              <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
+                <BarChart data={regionChart} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="region" tickLine={false} />
+                  <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="gap" fill="#a33b2f" name="Estimated gap" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="recoverable"
+                    fill="#245c4f"
+                    name="Recoverable"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState label="No regional report rows match the filters." />
+            )}
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+        <Section title="Tax Gap by Sector">
+          <DataTable columns={sectorColumns} data={filteredSector} filter="" />
+        </Section>
+        <Section title="Audit Pipeline">
+          <DataTable columns={pipelineColumns} data={filteredPipeline} filter="" />
+        </Section>
+      </div>
+
+      <Section title="Officer Productivity">
+        <DataTable columns={officerColumns} data={filteredOfficers} filter="" />
+      </Section>
     </div>
   );
 }
@@ -2690,6 +3048,44 @@ function SearchInput({
   );
 }
 
+function SelectFilter({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: string[];
+  value: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold uppercase text-gray-600">{label}</span>
+      <select
+        className="min-h-11 w-full rounded-md border border-line bg-white px-3 text-sm focus:border-authority"
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        <option value="ALL">All</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option.replace("_", " ")}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-md border border-line bg-paper px-4 text-center text-sm font-medium text-gray-700">
+      {label}
+    </div>
+  );
+}
+
 function Badge({ value }: { value: string }) {
   return (
     <span
@@ -2759,6 +3155,12 @@ function graphTypeLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function uniqueOptions(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).sort((left, right) =>
+    left.localeCompare(right),
+  );
 }
 
 function scoringErrorMessage(error: unknown) {

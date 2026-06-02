@@ -195,6 +195,9 @@ public class RuleEngineService {
             case "PAYE_RATIO_ANOMALY" -> payeRatioAnomaly(rule);
             case "PERMIT_ACTIVE_TAX_INACTIVE" -> permitActiveTaxInactive(rule);
             case "PAYMENT_SETTLEMENT_MISMATCH" -> paymentSettlementMismatch(rule);
+            case "RENTAL_INCOME_MISMATCH" -> rentalIncomeMismatch(rule);
+            case "SECTOR_MARGIN_DEVIATION" -> sectorMarginDeviation(rule);
+            case "EXPENSE_FROM_NON_COMPLIANT_SUPPLIER" -> expenseFromNonCompliantSupplier(rule);
             default -> throw new IllegalArgumentException("Unsupported deterministic rule: " + rule.code());
         };
     }
@@ -607,6 +610,191 @@ public class RuleEngineService {
                            'settlementCount', f.settlement_count,
                            'settlementDelayDays', :settlementDelayDays,
                            'minimumGap', :minimumGap,
+                           'thresholds', r.threshold_config
+                       ),
+                       'OPEN'
+                FROM flagged f
+                JOIN risk_rules r ON r.code = :code
+                """);
+    }
+
+    private int rentalIncomeMismatch(RuleConfig rule) {
+        return upsert(rule, params(rule)
+                .addValue("minimumGap", money(rule, "minimumGap", "50000"))
+                .addValue("minimumProperties", integer(rule, "minimumProperties", 1))
+                .addValue("annualizationMonths", integer(rule, "annualizationMonths", 12)), """
+                WITH property_income AS (
+                    SELECT owner_taxpayer_id AS taxpayer_id,
+                           date_trunc('year', current_date - INTERVAL '1 year')::date AS period_start,
+                           (date_trunc('year', current_date - INTERVAL '1 year')::date + INTERVAL '1 year - 1 day')::date AS period_end,
+                           sum(coalesce(estimated_monthly_rent, 0)) * CAST(:annualizationMonths AS integer) AS estimated_annual_rent,
+                           count(*) AS property_count,
+                           jsonb_agg(jsonb_build_object(
+                               'propertyReference', property_reference,
+                               'county', county,
+                               'propertyType', property_type,
+                               'estimatedMonthlyRent', estimated_monthly_rent
+                           ) ORDER BY property_reference) AS properties
+                    FROM properties
+                    WHERE owner_taxpayer_id IS NOT NULL
+                      AND coalesce(estimated_monthly_rent, 0) > 0
+                    GROUP BY owner_taxpayer_id
+                ),
+                declared AS (
+                    SELECT taxpayer_id,
+                           sum(coalesce(declared_income, 0)) AS declared_income
+                    FROM tax_returns
+                    WHERE tax_head IN ('INCOME_TAX', 'RENTAL_INCOME')
+                      AND period_start >= date_trunc('year', current_date - INTERVAL '1 year')::date
+                      AND period_end <= (date_trunc('year', current_date - INTERVAL '1 year')::date + INTERVAL '1 year - 1 day')::date
+                    GROUP BY taxpayer_id
+                ),
+                flagged AS (
+                    SELECT p.*, coalesce(d.declared_income, 0) AS declared_income,
+                           p.estimated_annual_rent - coalesce(d.declared_income, 0) AS gap
+                    FROM property_income p
+                    LEFT JOIN declared d ON d.taxpayer_id = p.taxpayer_id
+                    WHERE p.property_count >= CAST(:minimumProperties AS integer)
+                      AND p.estimated_annual_rent - coalesce(d.declared_income, 0) >= :minimumGap
+                )
+                SELECT r.code || ':' || f.taxpayer_id || ':' || f.period_start || ':' || f.period_end,
+                       f.taxpayer_id, r.id, r.code, r.tax_head, f.period_start, f.period_end,
+                       f.estimated_annual_rent, f.declared_income, f.gap, 86.00, r.severity,
+                       'Estimated annual rental income exceeds declared income by ' || f.gap,
+                       jsonb_build_object(
+                           'ruleCode', r.code,
+                           'propertyCount', f.property_count,
+                           'properties', f.properties,
+                           'annualizationMonths', :annualizationMonths,
+                           'minimumGap', :minimumGap,
+                           'minimumProperties', :minimumProperties,
+                           'thresholds', r.threshold_config
+                       ),
+                       'OPEN'
+                FROM flagged f
+                JOIN risk_rules r ON r.code = :code
+                """);
+    }
+
+    private int sectorMarginDeviation(RuleConfig rule) {
+        return upsert(rule, params(rule)
+                .addValue("minimumSales", money(rule, "minimumSales", "100000"))
+                .addValue("minimumGap", money(rule, "minimumGap", "50000"))
+                .addValue("minimumPeerCount", integer(rule, "minimumPeerCount", 2))
+                .addValue("minimumMarginShortfallPercent", decimal(rule, "minimumMarginShortfallPercent", "20")), """
+                WITH taxpayer_activity AS (
+                    SELECT tr.taxpayer_id,
+                           t.sector_code,
+                           t.sector_name,
+                           tr.period_start,
+                           tr.period_end,
+                           sum(coalesce(tr.declared_sales, 0)) AS declared_sales,
+                           sum(coalesce(tr.declared_income, 0)) AS declared_income
+                    FROM tax_returns tr
+                    JOIN taxpayers t ON t.id = tr.taxpayer_id
+                    WHERE tr.tax_head IN ('INCOME_TAX', 'VAT')
+                      AND t.sector_code IS NOT NULL
+                    GROUP BY tr.taxpayer_id, t.sector_code, t.sector_name, tr.period_start, tr.period_end
+                ),
+                sector_peer AS (
+                    SELECT sector_code,
+                           period_start,
+                           period_end,
+                           avg(declared_income / greatest(declared_sales, 1)) AS average_margin,
+                           count(*) AS peer_count
+                    FROM taxpayer_activity
+                    WHERE declared_sales >= :minimumSales
+                    GROUP BY sector_code, period_start, period_end
+                ),
+                flagged AS (
+                    SELECT a.*,
+                           s.average_margin,
+                           s.peer_count,
+                           a.declared_income / greatest(a.declared_sales, 1) AS taxpayer_margin,
+                           round(greatest((s.average_margin * a.declared_sales) - a.declared_income, 0), 2) AS gap
+                    FROM taxpayer_activity a
+                    JOIN sector_peer s
+                      ON s.sector_code = a.sector_code
+                     AND s.period_start = a.period_start
+                     AND s.period_end = a.period_end
+                    WHERE a.declared_sales >= :minimumSales
+                      AND s.peer_count >= CAST(:minimumPeerCount AS integer)
+                      AND ((s.average_margin - (a.declared_income / greatest(a.declared_sales, 1))) * 100)
+                          >= :minimumMarginShortfallPercent
+                      AND round(greatest((s.average_margin * a.declared_sales) - a.declared_income, 0), 2) >= :minimumGap
+                )
+                SELECT r.code || ':' || f.taxpayer_id || ':' || f.period_start || ':' || f.period_end,
+                       f.taxpayer_id, r.id, r.code, r.tax_head, f.period_start, f.period_end,
+                       round(f.average_margin * f.declared_sales, 2), f.declared_income, f.gap, 74.00, r.severity,
+                       'Declared income margin is materially below sector peers by ' || f.gap,
+                       jsonb_build_object(
+                           'ruleCode', r.code,
+                           'sectorCode', f.sector_code,
+                           'sectorName', f.sector_name,
+                           'peerCount', f.peer_count,
+                           'sectorAverageMargin', f.average_margin,
+                           'taxpayerMargin', f.taxpayer_margin,
+                           'minimumSales', :minimumSales,
+                           'minimumGap', :minimumGap,
+                           'minimumPeerCount', :minimumPeerCount,
+                           'minimumMarginShortfallPercent', :minimumMarginShortfallPercent,
+                           'thresholds', r.threshold_config
+                       ),
+                       'OPEN'
+                FROM flagged f
+                JOIN risk_rules r ON r.code = :code
+                """);
+    }
+
+    private int expenseFromNonCompliantSupplier(RuleConfig rule) {
+        return upsert(rule, params(rule)
+                .addValue("minimumPurchaseAmount", money(rule, "minimumPurchaseAmount", "50000"))
+                .addValue("periodGraceDays", integer(rule, "periodGraceDays", 45)), """
+                WITH purchase_totals AS (
+                    SELECT buyer_taxpayer_id AS taxpayer_id,
+                           supplier_taxpayer_id,
+                           date_trunc('month', invoice_date)::date AS period_start,
+                           (date_trunc('month', invoice_date)::date + INTERVAL '1 month - 1 day')::date AS period_end,
+                           sum(taxable_amount) AS purchase_amount,
+                           sum(tax_amount) AS input_tax_amount,
+                           count(*) AS invoice_count
+                    FROM invoices
+                    WHERE buyer_taxpayer_id IS NOT NULL
+                      AND supplier_taxpayer_id IS NOT NULL
+                      AND upper(invoice_status) NOT IN ('CANCELLED', 'VOID')
+                    GROUP BY buyer_taxpayer_id, supplier_taxpayer_id, date_trunc('month', invoice_date)::date
+                ),
+                flagged AS (
+                    SELECT p.*, st.kra_pin AS supplier_pin, st.legal_name AS supplier_name, st.status AS supplier_status
+                    FROM purchase_totals p
+                    JOIN taxpayers st ON st.id = p.supplier_taxpayer_id
+                    WHERE p.period_end <= current_date - CAST(:periodGraceDays AS integer)
+                      AND p.purchase_amount >= :minimumPurchaseAmount
+                      AND (
+                          upper(st.status) NOT IN ('ACTIVE', 'REGISTERED')
+                          OR NOT EXISTS (
+                              SELECT 1
+                              FROM tax_obligations o
+                              WHERE o.taxpayer_id = p.supplier_taxpayer_id
+                                AND o.tax_head IN ('VAT', 'INCOME_TAX')
+                                AND upper(o.obligation_status) = 'ACTIVE'
+                          )
+                      )
+                )
+                SELECT r.code || ':' || f.taxpayer_id || ':' || f.supplier_taxpayer_id || ':' || f.period_start || ':' || f.period_end,
+                       f.taxpayer_id, r.id, r.code, r.tax_head, f.period_start, f.period_end,
+                       f.purchase_amount, 0::numeric, f.purchase_amount, 79.00, r.severity,
+                       'Purchases or input claims come from a supplier without active compliance indicators',
+                       jsonb_build_object(
+                           'ruleCode', r.code,
+                           'supplierTaxpayerId', f.supplier_taxpayer_id,
+                           'supplierPin', f.supplier_pin,
+                           'supplierName', f.supplier_name,
+                           'supplierStatus', f.supplier_status,
+                           'invoiceCount', f.invoice_count,
+                           'inputTaxAmount', f.input_tax_amount,
+                           'minimumPurchaseAmount', :minimumPurchaseAmount,
+                           'periodGraceDays', :periodGraceDays,
                            'thresholds', r.threshold_config
                        ),
                        'OPEN'

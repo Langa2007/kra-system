@@ -90,4 +90,23 @@ public class AppUser {
         roles.add(role);
         updatedAt = OffsetDateTime.now();
     }
+
+    public void updateProfile(String fullName, String department, String status) {
+        if (fullName != null && !fullName.isBlank()) {
+            this.fullName = fullName.trim();
+        }
+        if (department != null) {
+            this.department = department.isBlank() ? null : department.trim();
+        }
+        if (status != null && !status.isBlank()) {
+            this.status = status.trim().toUpperCase();
+        }
+        updatedAt = OffsetDateTime.now();
+    }
+
+    public void replaceRoles(Set<Role> roles) {
+        this.roles.clear();
+        this.roles.addAll(roles);
+        updatedAt = OffsetDateTime.now();
+    }
 }

@@ -3,7 +3,9 @@ package com.nyle.kra.revenue.admin;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -12,16 +14,27 @@ import java.util.UUID;
 import com.nyle.kra.revenue.audit.AuditService;
 import com.nyle.kra.revenue.identity.AppUser;
 import com.nyle.kra.revenue.identity.AppUserRepository;
+import com.nyle.kra.revenue.identity.Role;
+import com.nyle.kra.revenue.identity.RoleRepository;
 import com.nyle.kra.revenue.security.AuthenticatedUser;
+import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin/governance")
@@ -30,17 +43,23 @@ public class AdminGovernanceController {
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final AppUserRepository appUserRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
 
     public AdminGovernanceController(
             JdbcTemplate jdbcTemplate,
             NamedParameterJdbcTemplate namedParameterJdbcTemplate,
             AppUserRepository appUserRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
             AuditService auditService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.appUserRepository = appUserRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
     }
 
@@ -105,6 +124,90 @@ public class AdminGovernanceController {
                 rs.getInt("user_count"),
                 rs.getInt("permission_count")
         ));
+    }
+
+    @GetMapping("/users")
+    public List<AdminUserResponse> users() {
+        return appUserRepository.findAll().stream()
+                .map(this::userResponse)
+                .sorted((left, right) -> left.email().compareToIgnoreCase(right.email()))
+                .toList();
+    }
+
+    @PostMapping("/users")
+    public AdminUserResponse createUser(
+            @Valid @RequestBody CreateAdminUserRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            HttpServletRequest httpRequest
+    ) {
+        if (appUserRepository.findByEmailIgnoreCase(request.email()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists");
+        }
+        AppUser user = new AppUser(
+                request.email().trim().toLowerCase(Locale.ROOT),
+                request.fullName().trim(),
+                blankToNull(request.department()),
+                normalizeStatus(request.status())
+        );
+        user.replaceRoles(resolveRoles(request.roles()));
+        AppUser saved = appUserRepository.save(user);
+        jdbcTemplate.update("""
+                INSERT INTO auth_credentials (app_user_id, password_hash)
+                VALUES (?, ?)
+                """, saved.getId(), passwordEncoder.encode(request.password()));
+        auditService.record(
+                AuditService.SENSITIVE_ACCESS,
+                actor(authenticatedUser),
+                "app_users",
+                saved.getId(),
+                httpRequest,
+                Map.<String, Object>of("action", "admin_user_created", "email", saved.getEmail())
+        );
+        return userResponse(saved);
+    }
+
+    @PatchMapping("/users/{id}")
+    public AdminUserResponse updateUser(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateAdminUserRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            HttpServletRequest httpRequest
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.updateProfile(request.fullName(), request.department(), request.status());
+        AppUser saved = appUserRepository.save(user);
+        auditService.record(
+                AuditService.SENSITIVE_ACCESS,
+                actor(authenticatedUser),
+                "app_users",
+                saved.getId(),
+                httpRequest,
+                Map.<String, Object>of("action", "admin_user_updated", "email", saved.getEmail())
+        );
+        return userResponse(saved);
+    }
+
+    @PutMapping("/users/{id}/roles")
+    public AdminUserResponse updateUserRoles(
+            @PathVariable UUID id,
+            @RequestBody UpdateUserRolesRequest request,
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            HttpServletRequest httpRequest
+    ) {
+        AppUser user = appUserRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.replaceRoles(resolveRoles(request.roles()));
+        AppUser saved = appUserRepository.save(user);
+        auditService.record(
+                AuditService.SENSITIVE_ACCESS,
+                actor(authenticatedUser),
+                "app_users",
+                saved.getId(),
+                httpRequest,
+                Map.<String, Object>of("action", "admin_user_roles_updated", "email", saved.getEmail())
+        );
+        return userResponse(saved);
     }
 
     @GetMapping("/permissions")
@@ -258,6 +361,55 @@ public class AdminGovernanceController {
         );
     }
 
+    private AdminUserResponse userResponse(AppUser user) {
+        return new AdminUserResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getDepartment(),
+                user.getStatus(),
+                user.getRoles().stream()
+                        .map(Role::getCode)
+                        .sorted()
+                        .toList()
+        );
+    }
+
+    private LinkedHashSet<Role> resolveRoles(List<String> requestedRoles) {
+        List<String> codes = requestedRoles == null || requestedRoles.isEmpty()
+                ? List.of("OFFICER")
+                : requestedRoles;
+        LinkedHashSet<Role> roles = new LinkedHashSet<>();
+        for (String code : codes) {
+            String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
+            if (normalized.isBlank()) {
+                continue;
+            }
+            roles.add(roleRepository.findByCode(normalized)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown role: " + normalized)));
+        }
+        if (roles.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one role is required");
+        }
+        return roles;
+    }
+
+    private Optional<AppUser> actor(AuthenticatedUser authenticatedUser) {
+        if (authenticatedUser == null || authenticatedUser.getUserId() == null) {
+            return Optional.empty();
+        }
+        return appUserRepository.findById(authenticatedUser.getUserId());
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = blankToNull(status);
+        return normalized == null ? "ACTIVE" : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private int count(String sql) {
         return Objects.requireNonNull(jdbcTemplate.queryForObject(sql, Integer.class));
     }
@@ -278,4 +430,3 @@ public class AdminGovernanceController {
         );
     }
 }
-

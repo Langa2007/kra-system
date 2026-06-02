@@ -2,11 +2,14 @@ package com.nyle.kra.revenue.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Objects;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,6 +94,64 @@ class AdminGovernanceIntegrationTest extends PostgresIntegrationTest {
                         .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
                         .content("{}"))
                 .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void adminCanCreateUpdateAndAssignUserRoles() throws Exception {
+        String token = login();
+        String email = "phase14-officer-" + UUID.randomUUID() + "@example.test";
+
+        String createResponse = mockMvc.perform(post("/api/admin/governance/users")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull("""
+                                {
+                                  "email": "%s",
+                                  "fullName": "Phase Fourteen Officer",
+                                  "department": "Compliance",
+                                  "status": "ACTIVE",
+                                  "password": "temporary-password-123",
+                                  "roles": ["OFFICER"]
+                                }
+                                """.formatted(email))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.roles[0]").value("OFFICER"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String userId = objectMapper.readTree(createResponse).get("id").asText();
+
+        mockMvc.perform(patch("/api/admin/governance/users/{id}", userId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull("""
+                                {
+                                  "fullName": "Phase Fourteen Senior Officer",
+                                  "department": "Investigations",
+                                  "status": "ACTIVE"
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fullName").value("Phase Fourteen Senior Officer"))
+                .andExpect(jsonPath("$.department").value("Investigations"));
+
+        mockMvc.perform(put("/api/admin/governance/users/{id}/roles", userId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                        .content(Objects.requireNonNull("""
+                                {
+                                  "roles": ["ANALYST", "AUDITOR"]
+                                }
+                                """)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles[0]").value("ANALYST"))
+                .andExpect(jsonPath("$.roles[1]").value("AUDITOR"));
+
+        mockMvc.perform(get("/api/admin/governance/users")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.email == '%s')].roles".formatted(email)).exists());
     }
 
     private String login() throws Exception {

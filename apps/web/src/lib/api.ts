@@ -18,6 +18,11 @@ import type {
   RiskScoringRun,
   RiskSignal,
   RuleDefinition,
+  AuditPipelineReport,
+  OfficerProductivityReport,
+  RevenueRecoveryReport,
+  TaxGapByRegionReport,
+  TaxGapBySectorReport,
   TaxGapRanking,
   TaxGapSummary,
   TaxpayerGraph,
@@ -256,4 +261,40 @@ export function runRiskScoring(token: string) {
 
 export function getAdminGovernance(token: string | null) {
   return request<AdminGovernanceDashboard>("/admin/governance/dashboard", { token });
+}
+
+export function getTaxGapBySector(token: string | null) {
+  return request<TaxGapBySectorReport[]>("/reports/tax-gap/by-sector", { token });
+}
+
+export function getTaxGapByRegion(token: string | null) {
+  return request<TaxGapByRegionReport[]>("/reports/tax-gap/by-region", { token });
+}
+
+export function getOfficerProductivity(token: string | null) {
+  return request<OfficerProductivityReport[]>("/reports/officer-productivity", { token });
+}
+
+export function getRevenueRecovery(token: string | null) {
+  return request<RevenueRecoveryReport[]>("/reports/revenue-recovery", { token });
+}
+
+export function getAuditPipeline(token: string | null) {
+  return request<AuditPipelineReport[]>("/reports/audit-pipeline", { token });
+}
+
+export async function downloadTaxGapBySectorExport(token: string, format: "csv" | "xlsx" | "pdf") {
+  const response = await fetch(`${API_PREFIX}/reports/exports/tax-gap-by-sector.${format}`, {
+    headers: {
+      Accept: "*/*",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || response.statusText, response.status);
+  }
+
+  return response.blob();
 }

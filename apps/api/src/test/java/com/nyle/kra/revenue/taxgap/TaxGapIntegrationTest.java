@@ -71,21 +71,22 @@ class TaxGapIntegrationTest extends PostgresIntegrationTest {
 
         JsonNode first = runTaxGapJob(token);
 
-        assertThat(first.get("sourceSignalsUsed").asInt()).isEqualTo(8);
-        assertThat(first.get("estimatesTouched").asInt()).isEqualTo(5);
-        assertThat(estimateCount()).isEqualTo(5);
+        assertThat(first.get("sourceSignalsUsed").asInt()).isEqualTo(11);
+        assertThat(first.get("estimatesTouched").asInt()).isEqualTo(6);
+        assertThat(estimateCount()).isEqualTo(6);
         assertThat(taxHeads()).containsExactlyInAnyOrder(
                 "VAT",
                 "INCOME_TAX",
                 "WITHHOLDING_TAX",
                 "PAYE",
-                "REVENUE_ASSURANCE"
+                "REVENUE_ASSURANCE",
+                "RENTAL_INCOME"
         );
 
         JsonNode second = runTaxGapJob(token);
 
-        assertThat(second.get("sourceSignalsUsed").asInt()).isEqualTo(8);
-        assertThat(estimateCount()).isEqualTo(5);
+        assertThat(second.get("sourceSignalsUsed").asInt()).isEqualTo(11);
+        assertThat(estimateCount()).isEqualTo(6);
     }
 
     @Test
@@ -224,6 +225,9 @@ class TaxGapIntegrationTest extends PostgresIntegrationTest {
         riskSignal(taxpayer, "WHT_INCOME_MISMATCH", "WITHHOLDING_TAX", 10000, 100000, 90000);
         riskSignal(taxpayer, "PAYE_RATIO_ANOMALY", "PAYE", 1000, 16000, 15000);
         riskSignal(taxpayer, "PAYMENT_SETTLEMENT_MISMATCH", "REVENUE_ASSURANCE", 0, 50000, 50000);
+        riskSignal(taxpayer, "RENTAL_INCOME_MISMATCH", "RENTAL_INCOME", 10000, 120000, 110000);
+        riskSignal(taxpayer, "SECTOR_MARGIN_DEVIATION", "INCOME_TAX", 3000, 100000, 97000);
+        riskSignal(taxpayer, "EXPENSE_FROM_NON_COMPLIANT_SUPPLIER", "VAT", 0, 80000, 80000);
     }
 
     private UUID taxpayer(String pin, String legalName) {

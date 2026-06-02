@@ -72,9 +72,9 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
 
         JsonNode firstRun = runRules(token);
 
-        assertThat(firstRun.get("rulesExecuted").asInt()).isEqualTo(8);
-        assertThat(firstRun.get("signalsTouched").asInt()).isEqualTo(8);
-        assertThat(signalCount()).isEqualTo(8);
+        assertThat(firstRun.get("rulesExecuted").asInt()).isEqualTo(11);
+        assertThat(firstRun.get("signalsTouched").asInt()).isEqualTo(11);
+        assertThat(signalCount()).isEqualTo(11);
         assertThat(signalCodes()).containsExactlyInAnyOrder(
                 "VAT_OUTPUT_MISMATCH",
                 "VAT_INPUT_MISMATCH",
@@ -83,7 +83,10 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
                 "NIL_FILER_ISSUING_INVOICES",
                 "PAYE_RATIO_ANOMALY",
                 "PERMIT_ACTIVE_TAX_INACTIVE",
-                "PAYMENT_SETTLEMENT_MISMATCH"
+                "PAYMENT_SETTLEMENT_MISMATCH",
+                "RENTAL_INCOME_MISMATCH",
+                "SECTOR_MARGIN_DEVIATION",
+                "EXPENSE_FROM_NON_COMPLIANT_SUPPLIER"
         );
         assertThat(jdbcTemplate.queryForObject("""
                 SELECT count(*)
@@ -93,12 +96,12 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
                   AND evidence ? 'thresholds'
                   AND confidence_score > 0
                   AND deterministic_key IS NOT NULL
-                """, Integer.class)).isEqualTo(8);
+                """, Integer.class)).isEqualTo(11);
 
         JsonNode secondRun = runRules(token);
 
-        assertThat(secondRun.get("rulesExecuted").asInt()).isEqualTo(8);
-        assertThat(signalCount()).isEqualTo(8);
+        assertThat(secondRun.get("rulesExecuted").asInt()).isEqualTo(11);
+        assertThat(signalCount()).isEqualTo(11);
     }
 
     @Test
@@ -226,6 +229,7 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
 
     private void seedAllRuleScenarios() {
         UUID vatOutput = taxpayer("P600000001A", "VAT Output Traders Ltd");
+        taxObligation(vatOutput, "VAT", "ACTIVE");
         vatReturn(vatOutput, 50000, 8000, 0, "FILED");
         salesInvoice("INV-P6-OUTPUT", vatOutput, null, "2025-01-10", 200000, 32000);
 
@@ -252,14 +256,36 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
         permit(permitOnly, "BP-P6-INACTIVE", 20000);
 
         payment("PAY-P6-UNSETTLED", "KRA", "MPESA", "2025-01-15T10:00:00Z", 50000);
+
+        UUID landlord = taxpayer("P600000011K", "Rental Gap Ltd");
+        incomeReturn(landlord, 10000);
+        property(landlord, "PROP-P6-RENTAL", 10000);
+
+        UUID sectorTarget = taxpayer("P600000012L", "Low Margin Sector Ltd");
+        setSector(sectorTarget, "RET", "Retail Trade");
+        incomeReturn(sectorTarget, 300000, 3000);
+        UUID sectorPeerOne = taxpayer("P600000013M", "Peer Margin One Ltd");
+        setSector(sectorPeerOne, "RET", "Retail Trade");
+        incomeReturn(sectorPeerOne, 300000, 150000);
+        UUID sectorPeerTwo = taxpayer("P600000014N", "Peer Margin Two Ltd");
+        setSector(sectorPeerTwo, "RET", "Retail Trade");
+        incomeReturn(sectorPeerTwo, 300000, 150000);
+
+        UUID buyer = taxpayer("P600000015O", "Buyer With Risky Expense Ltd");
+        UUID inactiveSupplier = taxpayer("P600000016P", "Inactive Supplier Ltd", "DORMANT");
+        salesInvoice("INV-P6-RISKY-SUPPLIER", inactiveSupplier, buyer, "2025-01-16", 80000, 0);
     }
 
     private UUID taxpayer(String pin, String legalName) {
+        return taxpayer(pin, legalName, "ACTIVE");
+    }
+
+    private UUID taxpayer(String pin, String legalName, String status) {
         UUID id = UUID.randomUUID();
         jdbcTemplate.update("""
                 INSERT INTO taxpayers (id, kra_pin, taxpayer_type, legal_name, registration_number, county, status)
-                VALUES (?, ?, 'COMPANY', ?, ?, 'Nairobi', 'ACTIVE')
-                """, id, pin, legalName, "BN-" + pin);
+                VALUES (?, ?, 'COMPANY', ?, ?, 'Nairobi', ?)
+                """, id, pin, legalName, "BN-" + pin, status);
         return id;
     }
 
@@ -275,6 +301,10 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
     }
 
     private void incomeReturn(UUID taxpayer, int income) {
+        incomeReturn(taxpayer, income, income);
+    }
+
+    private void incomeReturn(UUID taxpayer, int sales, int income) {
         jdbcTemplate.update("""
                 INSERT INTO tax_returns (
                     id, taxpayer_id, tax_head, period_start, period_end, return_reference,
@@ -282,7 +312,34 @@ class RuleEngineIntegrationTest extends PostgresIntegrationTest {
                 )
                 VALUES (?, ?, 'INCOME_TAX', ?, ?, ?, ?, ?, 'FILED')
                 """, UUID.randomUUID(), taxpayer, PERIOD_START, PERIOD_END, "RET-" + UUID.randomUUID(),
-                income, income);
+                income, sales);
+    }
+
+    private void setSector(UUID taxpayer, String sectorCode, String sectorName) {
+        jdbcTemplate.update("""
+                UPDATE taxpayers
+                SET sector_code = ?, sector_name = ?
+                WHERE id = ?
+                """, sectorCode, sectorName, taxpayer);
+    }
+
+    private void property(UUID taxpayer, String reference, int estimatedMonthlyRent) {
+        jdbcTemplate.update("""
+                INSERT INTO properties (
+                    id, owner_taxpayer_id, property_reference, county, property_type,
+                    valuation_amount, estimated_monthly_rent
+                )
+                VALUES (?, ?, ?, 'Nairobi', 'Residential rental', 2500000, ?)
+                """, UUID.randomUUID(), taxpayer, reference, estimatedMonthlyRent);
+    }
+
+    private void taxObligation(UUID taxpayer, String taxHead, String status) {
+        jdbcTemplate.update("""
+                INSERT INTO tax_obligations (
+                    id, taxpayer_id, tax_head, obligation_status, effective_from
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """, UUID.randomUUID(), taxpayer, taxHead, status, PERIOD_START);
     }
 
     private void salesInvoice(

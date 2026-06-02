@@ -15,7 +15,10 @@ public class DeterministicRuleCatalog {
             "NIL_FILER_ISSUING_INVOICES",
             "PAYE_RATIO_ANOMALY",
             "PERMIT_ACTIVE_TAX_INACTIVE",
-            "PAYMENT_SETTLEMENT_MISMATCH"
+            "PAYMENT_SETTLEMENT_MISMATCH",
+            "RENTAL_INCOME_MISMATCH",
+            "SECTOR_MARGIN_DEVIATION",
+            "EXPENSE_FROM_NON_COMPLIANT_SUPPLIER"
     );
 
     public List<String> supportedCodes() {

@@ -55,6 +55,8 @@ class GraphIntelligenceIntegrationTest extends PostgresIntegrationTest {
         jdbcTemplate.update("DELETE FROM business_permits");
         jdbcTemplate.update("DELETE FROM properties");
         jdbcTemplate.update("DELETE FROM payment_transactions");
+        jdbcTemplate.update("DELETE FROM settlement_records");
+        jdbcTemplate.update("DELETE FROM tax_obligations");
         jdbcTemplate.update("DELETE FROM taxpayers");
     }
 

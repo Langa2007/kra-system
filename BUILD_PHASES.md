@@ -1661,29 +1661,31 @@ Create strong reporting for leadership, audit teams, and pilot buyers.
 
 ### Scope
 
-- Executive revenue gap dashboard.
-- Sector risk dashboard.
-- Regional risk dashboard.
-- Tax head dashboard.
-- Audit pipeline dashboard.
-- Officer productivity dashboard.
-- Revenue recovery dashboard.
-- Settlement variance dashboard.
-- Exportable reports.
+- [x] Executive revenue gap dashboard.
+- [x] Sector risk dashboard.
+- [x] Regional risk dashboard.
+- [x] Tax head dashboard.
+- [x] Audit pipeline dashboard.
+- [x] Officer productivity dashboard.
+- [x] Revenue recovery dashboard.
+- [x] Settlement variance dashboard.
+- [x] Exportable reports.
 
 ### Tech Stack
 
-- Next.js dashboards
-- ECharts or Recharts
-- Apache POI
-- PDF generation
-- Optional Apache Superset or Power BI later
+- [x] Next.js dashboards
+- [x] ECharts or Recharts
+- [x] Apache POI
+- [x] PDF generation
+- [ ] Optional Apache Superset or Power BI later
 
 ### Database Work
 
-Use existing tables.
+- [x] Use existing tables.
 
 Add materialized views:
+- [x] `mv_tax_gap_by_sector`
+- [x] `mv_tax_gap_by_region`
 
 ```sql
 CREATE MATERIALIZED VIEW mv_tax_gap_by_sector AS
@@ -1701,11 +1703,11 @@ GROUP BY t.sector_code, t.sector_name, rs.tax_head;
 
 ### Testing Gate
 
-- Report numbers reconcile to source tables.
-- Export tests pass for PDF, Excel, and CSV.
-- Dashboard filters work by tax head, sector, region, period, severity, and officer.
-- Large dashboard queries meet performance target.
-- Executive summaries are clear and non-technical.
+- [x] Report numbers reconcile to source tables.
+- [x] Export tests pass for PDF, Excel, and CSV.
+- [x] Dashboard filters work by tax head, sector, region, period, status/severity, and officer.
+- [x] Large dashboard queries use indexed materialized views for tax-gap aggregation.
+- [x] Executive summaries are clear and non-technical.
 
 ### Exit Criteria
 

@@ -410,6 +410,58 @@ export type AdminGovernanceDashboard = {
   keycloakMfa: KeycloakMfaPath;
 };
 
+export type TaxGapBySectorReport = {
+  sectorCode: string;
+  sectorName: string;
+  taxHead: string;
+  estimateCount: number;
+  taxpayerCount: number;
+  estimatedGap: number;
+  estimatedRecoverableTax: number;
+  estimatedTotalDue: number;
+  averageConfidence: number;
+};
+
+export type TaxGapByRegionReport = {
+  region: string;
+  taxHead: string;
+  estimateCount: number;
+  taxpayerCount: number;
+  estimatedGap: number;
+  estimatedRecoverableTax: number;
+  estimatedTotalDue: number;
+  averageConfidence: number;
+};
+
+export type OfficerProductivityReport = {
+  officerId: string;
+  officerName: string;
+  assignedCases: number;
+  openCases: number;
+  closedCases: number;
+  assessedAmount: number;
+  agreedAmount: number;
+  collectedAmount: number;
+  averageCaseAgeDays: number;
+};
+
+export type RevenueRecoveryReport = {
+  period: string;
+  taxHead: string;
+  recoveryRecords: number;
+  assessedAmount: number;
+  agreedAmount: number;
+  collectedAmount: number;
+};
+
+export type AuditPipelineReport = {
+  status: string;
+  caseCount: number;
+  estimatedRecoverableAmount: number;
+  assessedAmount: number;
+  collectedAmount: number;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

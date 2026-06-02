@@ -13,6 +13,11 @@ import type {
   RiskScoringDashboard,
   RiskSignal,
   RuleDefinition,
+  AuditPipelineReport,
+  OfficerProductivityReport,
+  RevenueRecoveryReport,
+  TaxGapByRegionReport,
+  TaxGapBySectorReport,
   TaxGapRanking,
   TaxGapSummary,
   TaxpayerGraph,
@@ -134,6 +139,115 @@ export const demoSummary: TaxGapSummary[] = [
     estimatedRecoverableTax: 1296000,
     signalCount: 1,
     taxHead: "SETTLEMENT",
+  },
+];
+
+export const demoTaxGapBySector: TaxGapBySectorReport[] = [
+  {
+    averageConfidence: 92,
+    estimatedGap: 38200000,
+    estimatedRecoverableTax: 6112000,
+    estimatedTotalDue: 44312000,
+    estimateCount: 3,
+    sectorCode: "WRT",
+    sectorName: "Wholesale and Retail Trade",
+    taxpayerCount: 2,
+    taxHead: "VAT",
+  },
+  {
+    averageConfidence: 88,
+    estimatedGap: 27500000,
+    estimatedRecoverableTax: 8250000,
+    estimatedTotalDue: 35750000,
+    estimateCount: 2,
+    sectorCode: "LOG",
+    sectorName: "Transport and Logistics",
+    taxpayerCount: 1,
+    taxHead: "INCOME_TAX",
+  },
+];
+
+export const demoTaxGapByRegion: TaxGapByRegionReport[] = [
+  {
+    averageConfidence: 90,
+    estimatedGap: 46600000,
+    estimatedRecoverableTax: 7416000,
+    estimatedTotalDue: 54016000,
+    estimateCount: 4,
+    region: "Nairobi",
+    taxpayerCount: 3,
+    taxHead: "VAT",
+  },
+  {
+    averageConfidence: 84,
+    estimatedGap: 19200000,
+    estimatedRecoverableTax: 5760000,
+    estimatedTotalDue: 24960000,
+    estimateCount: 2,
+    region: "Mombasa",
+    taxpayerCount: 1,
+    taxHead: "INCOME_TAX",
+  },
+];
+
+export const demoOfficerProductivity: OfficerProductivityReport[] = [
+  {
+    agreedAmount: 1750000,
+    assessedAmount: 2200000,
+    assignedCases: 4,
+    averageCaseAgeDays: 12,
+    closedCases: 1,
+    collectedAmount: 950000,
+    officerId: "officer-grace",
+    officerName: "Grace Njeri",
+    openCases: 3,
+  },
+  {
+    agreedAmount: 2500000,
+    assessedAmount: 3100000,
+    assignedCases: 3,
+    averageCaseAgeDays: 9,
+    closedCases: 2,
+    collectedAmount: 1800000,
+    officerId: "officer-daniel",
+    officerName: "Daniel Otieno",
+    openCases: 1,
+  },
+];
+
+export const demoRevenueRecovery: RevenueRecoveryReport[] = [
+  {
+    agreedAmount: 4250000,
+    assessedAmount: 5300000,
+    collectedAmount: 2750000,
+    period: "2026-05-01",
+    recoveryRecords: 3,
+    taxHead: "VAT",
+  },
+  {
+    agreedAmount: 1800000,
+    assessedAmount: 2600000,
+    collectedAmount: 900000,
+    period: "2026-04-01",
+    recoveryRecords: 2,
+    taxHead: "INCOME_TAX",
+  },
+];
+
+export const demoAuditPipeline: AuditPipelineReport[] = [
+  {
+    assessedAmount: 2200000,
+    caseCount: 3,
+    collectedAmount: 950000,
+    estimatedRecoverableAmount: 7400000,
+    status: "IN_REVIEW",
+  },
+  {
+    assessedAmount: 3100000,
+    caseCount: 2,
+    collectedAmount: 1800000,
+    estimatedRecoverableAmount: 4200000,
+    status: "CLOSED",
   },
 ];
 

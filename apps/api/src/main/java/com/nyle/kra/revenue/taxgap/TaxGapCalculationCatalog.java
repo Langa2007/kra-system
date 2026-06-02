@@ -19,7 +19,10 @@ public class TaxGapCalculationCatalog {
             config("WHT_INCOME_MISMATCH", "WITHHOLDING_TAX", "0.05", "0.05", "0.01", "withholding certificate income"),
             config("PAYE_RATIO_ANOMALY", "PAYE", "1.00", "0.05", "0.01", "expected PAYE shortfall"),
             config("PERMIT_ACTIVE_TAX_INACTIVE", "INCOME_TAX", "0.30", "0.05", "0.01", "active permit exposure"),
-            config("PAYMENT_SETTLEMENT_MISMATCH", "REVENUE_ASSURANCE", "1.00", "0.00", "0.00", "unsettled collected revenue")
+            config("PAYMENT_SETTLEMENT_MISMATCH", "REVENUE_ASSURANCE", "1.00", "0.00", "0.00", "unsettled collected revenue"),
+            config("RENTAL_INCOME_MISMATCH", "RENTAL_INCOME", "0.10", "0.05", "0.01", "undeclared rental income"),
+            config("SECTOR_MARGIN_DEVIATION", "INCOME_TAX", "0.30", "0.05", "0.01", "sector margin shortfall"),
+            config("EXPENSE_FROM_NON_COMPLIANT_SUPPLIER", "VAT", "0.16", "0.05", "0.01", "supplier compliance exposure")
     );
 
     private final Map<String, TaxGapRuleConfig> bySignalType = configs.stream()

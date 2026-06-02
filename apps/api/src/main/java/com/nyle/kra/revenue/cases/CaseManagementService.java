@@ -391,7 +391,42 @@ public class CaseManagementService {
                         "confidenceScore", signal.confidenceScore()
                 ),
                 "sourceRecords", signal.evidence(),
-                "recommendation", "Review source records, contact taxpayer for explanation, and validate recoverable amount before assessment."
+                "linkedEntities", linkedEntities(signal.taxpayerId()),
+                "officerChecklist", List.of(
+                        "Validate source-record identifiers against operational systems.",
+                        "Contact taxpayer or counterparty for documented explanation.",
+                        "Confirm tax-head treatment, exemptions, and period cut-off.",
+                        "Record recovery assessment and decision notes before closure."
+                ),
+                "legalPolicyNotes", List.of(
+                        "Evidence pack is decision support and requires officer validation before assessment.",
+                        "Use only for authorized revenue administration workflows.",
+                        "Preserve audit trail when exporting or sharing sensitive records."
+                ),
+                "recommendation", "Review source records, linked entities, and taxpayer explanation before confirming recoverable amount."
+        ));
+    }
+
+    private List<Map<String, Object>> linkedEntities(UUID taxpayerId) {
+        if (taxpayerId == null) {
+            return List.of();
+        }
+        return namedJdbcTemplate.query("""
+                SELECT source_type, source_id, target_type, target_id, edge_type, weight, source,
+                       COALESCE(evidence::text, '{}') AS evidence_text
+                FROM graph_edges
+                WHERE source_id = :taxpayerId OR target_id = :taxpayerId
+                ORDER BY weight DESC, edge_type ASC
+                LIMIT 25
+                """, new MapSqlParameterSource("taxpayerId", taxpayerId), (rs, rowNum) -> Map.of(
+                "sourceType", rs.getString("source_type"),
+                "sourceId", rs.getObject("source_id", UUID.class).toString(),
+                "targetType", rs.getString("target_type"),
+                "targetId", rs.getObject("target_id", UUID.class).toString(),
+                "edgeType", rs.getString("edge_type"),
+                "weight", rs.getBigDecimal("weight"),
+                "source", nullToEmpty(rs.getString("source")),
+                "evidence", json(rs.getString("evidence_text"))
         ));
     }
 
@@ -412,6 +447,15 @@ public class CaseManagementService {
                 document.add(new Paragraph("Estimated recoverable: " + evidence.path("gap").path("estimatedRecoverableAmount").asText()));
                 document.add(new Paragraph("Confidence: " + evidence.path("gap").path("confidenceScore").asText()));
                 document.add(new Paragraph("Recommendation: " + evidence.path("recommendation").asText()));
+                document.add(new Paragraph("Linked entities: " + evidence.path("linkedEntities").size()));
+                document.add(new Paragraph("Officer checklist:"));
+                for (JsonNode item : evidence.path("officerChecklist")) {
+                    document.add(new Paragraph("- " + item.asText()));
+                }
+                document.add(new Paragraph("Legal and policy notes:"));
+                for (JsonNode item : evidence.path("legalPolicyNotes")) {
+                    document.add(new Paragraph("- " + item.asText()));
+                }
                 document.add(new Paragraph("Evidence JSON:"));
                 document.add(new Paragraph(evidence.toPrettyString()));
                 document.close();
