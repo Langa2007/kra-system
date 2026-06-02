@@ -701,7 +701,12 @@ export const demoGraph: TaxpayerGraph = {
   ],
   nodes: [
     { id: "taxpayer-amani", label: "Amani Wholesale Traders", nodeType: "TAXPAYER", riskScore: 86 },
-    { id: "taxpayer-related-002", label: "Kisumu Retail Network", nodeType: "TAXPAYER", riskScore: 74 },
+    {
+      id: "taxpayer-related-002",
+      label: "Kisumu Retail Network",
+      nodeType: "TAXPAYER",
+      riskScore: 74,
+    },
     { id: "channel-mpesa", label: "KRA / MPESA", nodeType: "PAYMENT_CHANNEL", riskScore: 0 },
     { id: "permit-nairobi", label: "Nairobi permits", nodeType: "PERMIT_COUNTY", riskScore: 0 },
   ],

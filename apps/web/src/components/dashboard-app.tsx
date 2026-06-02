@@ -1211,7 +1211,11 @@ function TaxpayerView({
             title={isLiveSession ? "Refresh graph intelligence" : "Sign in to refresh graph"}
             type="button"
           >
-            {isGraphPending ? <Loader2 className="animate-spin" size={16} /> : <Network size={16} />}
+            {isGraphPending ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Network size={16} />
+            )}
             {isGraphPending ? "Refreshing" : "Refresh graph"}
           </button>
         }
@@ -1313,16 +1317,17 @@ function GraphPanel({ graph, rootTaxpayerId }: { graph: TaxpayerGraph; rootTaxpa
           <div className="mt-3 grid gap-2">
             {graph.highRiskClusters.length ? (
               graph.highRiskClusters.slice(0, 3).map((cluster) => (
-                <div className="rounded-md border border-exposure/20 bg-white p-3" key={cluster.clusterKey}>
+                <div
+                  className="rounded-md border border-exposure/20 bg-white p-3"
+                  key={cluster.clusterKey}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="break-words text-sm font-semibold">
                       {cluster.sourceTaxpayerName} / {cluster.targetTaxpayerName}
                     </p>
                     <Badge value={graphTypeLabel(cluster.edgeType)} />
                   </div>
-                  <p className="mt-2 text-xs text-gray-700">
-                    {cluster.reasons.join(" / ")}
-                  </p>
+                  <p className="mt-2 text-xs text-gray-700">{cluster.reasons.join(" / ")}</p>
                 </div>
               ))
             ) : (
@@ -1346,7 +1351,9 @@ function GraphNodeColumn({ nodes }: { nodes: TaxpayerGraph["nodes"] }) {
               <span className="text-xs font-semibold uppercase text-gray-600">
                 {graphTypeLabel(node.nodeType)}
               </span>
-              <span className="text-sm font-semibold text-authority">{percent(node.riskScore)}</span>
+              <span className="text-sm font-semibold text-authority">
+                {percent(node.riskScore)}
+              </span>
             </div>
           </div>
         ))
@@ -1366,7 +1373,9 @@ function GraphEdgeItem({ edge }: { edge: GraphEdge }) {
         <p className="break-words text-sm font-semibold">
           {edge.sourceLabel} / {edge.targetLabel}
         </p>
-        <span className="text-sm font-semibold text-authority">{Number(edge.weight).toFixed(1)}</span>
+        <span className="text-sm font-semibold text-authority">
+          {Number(edge.weight).toFixed(1)}
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge value={graphTypeLabel(edge.edgeType)} />
