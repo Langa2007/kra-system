@@ -241,11 +241,12 @@ class IngestionIntegrationTest extends PostgresIntegrationTest {
     }
 
     private int count(String table, String field, String value) {
-        return jdbcTemplate.queryForObject(
+        Integer count = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM " + table + " WHERE " + field + " = ?",
                 Integer.class,
                 value
         );
+        return count == null ? 0 : count;
     }
 
     private String taxpayerCsv(UUID id, String pin, String legalName) {

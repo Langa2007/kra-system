@@ -207,6 +207,7 @@ class GraphIntelligenceIntegrationTest extends PostgresIntegrationTest {
     }
 
     private int edgeCount() {
-        return jdbcTemplate.queryForObject("SELECT count(*) FROM graph_edges", Integer.class);
+        Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM graph_edges", Integer.class);
+        return count == null ? 0 : count;
     }
 }

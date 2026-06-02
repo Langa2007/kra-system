@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -25,6 +24,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.test.web.servlet.MockMvc;
 
 @AutoConfigureMockMvc
@@ -180,7 +180,7 @@ class ReconciliationIntegrationTest extends PostgresIntegrationTest {
                 VALUES (?, ?, 'PERF', 'MPESA', CAST(? AS timestamptz), 1.00, 'PAID', ?)
                 """, new BatchPreparedStatementSetter() {
             @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
+            public void setValues(@NonNull PreparedStatement ps, int i) throws SQLException {
                 ps.setObject(1, UUID.randomUUID());
                 ps.setString(2, "PAY-PERF-" + i);
                 ps.setString(3, "2025-01-%02dT10:00:00Z".formatted((i % 10) + 1));

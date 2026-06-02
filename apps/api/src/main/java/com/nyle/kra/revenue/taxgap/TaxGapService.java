@@ -1,9 +1,7 @@
 package com.nyle.kra.revenue.taxgap;
 
-import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -158,7 +156,7 @@ public class TaxGapService {
     }
 
     private int sourceSignals() {
-        return namedJdbcTemplate.queryForObject("""
+        Integer count = namedJdbcTemplate.queryForObject("""
                 SELECT count(*)
                 FROM risk_signals
                 WHERE taxpayer_id IS NOT NULL
@@ -169,6 +167,7 @@ public class TaxGapService {
                 new MapSqlParameterSource().addValue("signalTypes", signalTypes()),
                 Integer.class
         );
+        return count == null ? 0 : count;
     }
 
     private int upsertEstimates() {
@@ -380,6 +379,7 @@ public class TaxGapService {
         if (authenticatedUser == null) {
             return Optional.empty();
         }
-        return appUserRepository.findById(authenticatedUser.getUserId());
+        UUID userId = authenticatedUser.getUserId();
+        return userId == null ? Optional.empty() : appUserRepository.findById(userId);
     }
 }

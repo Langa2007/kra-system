@@ -206,7 +206,7 @@ class CaseManagementIntegrationTest extends PostgresIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .param("format", "pdf"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(content().contentType(Objects.requireNonNull(MediaType.APPLICATION_PDF)))
                 .andReturn()
                 .getResponse()
                 .getContentAsByteArray();

@@ -1,5 +1,6 @@
 package com.nyle.kra.revenue.ml;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
@@ -16,9 +17,11 @@ import com.nyle.kra.revenue.identity.AppUser;
 import com.nyle.kra.revenue.identity.AppUserRepository;
 import com.nyle.kra.revenue.security.AuthenticatedUser;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -301,23 +304,34 @@ public class RiskScoringService {
     }
 
     private int insertPredictions(UUID modelVersionId, List<RiskScoringPrediction> predictions) {
-        int[][] counts = jdbcTemplate.batchUpdate("""
+        List<RiskScoringPrediction> batch = List.copyOf(predictions);
+        int[] counts = jdbcTemplate.batchUpdate("""
                 INSERT INTO model_predictions (
                     model_version_id, taxpayer_id, prediction_type, score, explanation
                 )
                 VALUES (?, ?, ?, ?, CAST(? AS jsonb))
-                """, predictions, 100, (ps, prediction) -> {
-                    ps.setObject(1, modelVersionId);
-                    ps.setObject(2, prediction.taxpayerId());
-                    ps.setString(3, PREDICTION_TYPE);
-                    ps.setBigDecimal(4, prediction.modelScore());
-                    ps.setString(5, jsonString(prediction.explanation()));
+                """, new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(@NonNull PreparedStatement ps, int index) throws SQLException {
+                        RiskScoringPrediction prediction = batch.get(index);
+                        ps.setObject(1, modelVersionId);
+                        ps.setObject(2, prediction.taxpayerId());
+                        ps.setString(3, PREDICTION_TYPE);
+                        ps.setBigDecimal(4, prediction.modelScore());
+                        ps.setString(5, jsonString(prediction.explanation()));
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return batch.size();
+                    }
                 });
         return sum(counts);
     }
 
     private int insertCombinedScores(UUID modelVersionId, List<RiskScoringPrediction> predictions) {
-        int[][] counts = jdbcTemplate.batchUpdate("""
+        List<RiskScoringPrediction> batch = List.copyOf(predictions);
+        int[] counts = jdbcTemplate.batchUpdate("""
                 INSERT INTO risk_scores (
                     taxpayer_id, score, confidence_score, scoring_period_start,
                     scoring_period_end, model_version_id, main_factors
@@ -325,12 +339,21 @@ public class RiskScoringService {
                 VALUES (
                     ?, ?, ?, current_date - 30, current_date, ?, CAST(? AS jsonb)
                 )
-                """, predictions, 100, (ps, prediction) -> {
-                    ps.setObject(1, prediction.taxpayerId());
-                    ps.setBigDecimal(2, prediction.combinedScore());
-                    ps.setBigDecimal(3, prediction.confidenceScore());
-                    ps.setObject(4, modelVersionId);
-                    ps.setString(5, jsonString(prediction.explanation()));
+                """, new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(@NonNull PreparedStatement ps, int index) throws SQLException {
+                        RiskScoringPrediction prediction = batch.get(index);
+                        ps.setObject(1, prediction.taxpayerId());
+                        ps.setBigDecimal(2, prediction.combinedScore());
+                        ps.setBigDecimal(3, prediction.confidenceScore());
+                        ps.setObject(4, modelVersionId);
+                        ps.setString(5, jsonString(prediction.explanation()));
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return batch.size();
+                    }
                 });
         return sum(counts);
     }
@@ -410,18 +433,11 @@ public class RiskScoringService {
         return total;
     }
 
-    private int sum(int[][] counts) {
-        int total = 0;
-        for (int[] batch : counts) {
-            total += sum(batch);
-        }
-        return total;
-    }
-
     private Optional<AppUser> actor(AuthenticatedUser authenticatedUser) {
         if (authenticatedUser == null) {
             return Optional.empty();
         }
-        return appUserRepository.findById(authenticatedUser.getUserId());
+        UUID userId = authenticatedUser.getUserId();
+        return userId == null ? Optional.empty() : appUserRepository.findById(userId);
     }
 }

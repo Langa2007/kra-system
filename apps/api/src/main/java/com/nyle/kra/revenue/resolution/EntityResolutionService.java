@@ -1,8 +1,8 @@
 package com.nyle.kra.revenue.resolution;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.nyle.kra.revenue.audit.AuditService;
@@ -241,7 +241,7 @@ public class EntityResolutionService {
                         rs.getString("registration_number"),
                         rs.getString("legal_name"),
                         rs.getString("trading_name"),
-                        rs.getString("match_basis"),
+                        Objects.requireNonNull(rs.getString("match_basis")),
                         rs.getDouble("confidence"),
                         rs.getDouble("confidence") >= AUTO_LINK_THRESHOLD
                 ));
@@ -288,7 +288,7 @@ public class EntityResolutionService {
                         rs.getObject("target_id", UUID.class),
                         rs.getString("source_name"),
                         rs.getString("target_name"),
-                        rs.getString("match_basis"),
+                        Objects.requireNonNull(rs.getString("match_basis")),
                         rs.getDouble("confidence")
                 ));
     }
@@ -301,6 +301,7 @@ public class EntityResolutionService {
         if (authenticatedUser == null) {
             return java.util.Optional.empty();
         }
-        return appUserRepository.findById(authenticatedUser.getUserId());
+        UUID userId = authenticatedUser.getUserId();
+        return userId == null ? java.util.Optional.empty() : appUserRepository.findById(userId);
     }
 }

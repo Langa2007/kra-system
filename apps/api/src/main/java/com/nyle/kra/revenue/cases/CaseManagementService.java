@@ -465,7 +465,8 @@ public class CaseManagementService {
         if (user == null) {
             return Optional.empty();
         }
-        return appUserRepository.findById(user.getUserId());
+        UUID userId = user.getUserId();
+        return userId == null ? Optional.empty() : appUserRepository.findById(userId);
     }
 
     private UUID userId(AuthenticatedUser user) {

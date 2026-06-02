@@ -729,6 +729,7 @@ public class RuleEngineService {
         if (authenticatedUser == null) {
             return Optional.empty();
         }
-        return appUserRepository.findById(authenticatedUser.getUserId());
+        UUID userId = authenticatedUser.getUserId();
+        return userId == null ? Optional.empty() : appUserRepository.findById(userId);
     }
 }

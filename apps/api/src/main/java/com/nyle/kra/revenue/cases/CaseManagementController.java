@@ -1,6 +1,7 @@
 package com.nyle.kra.revenue.cases;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.nyle.kra.revenue.security.AuthenticatedUser;
@@ -87,7 +88,7 @@ public class CaseManagementController {
     ) {
         if ("pdf".equalsIgnoreCase(format)) {
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_PDF)
+                    .contentType(Objects.requireNonNull(MediaType.APPLICATION_PDF))
                     .body(caseManagementService.evidencePackPdf(id, packId));
         }
         return ResponseEntity.ok(caseManagementService.evidencePack(id, packId));

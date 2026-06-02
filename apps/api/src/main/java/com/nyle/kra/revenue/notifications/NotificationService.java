@@ -50,7 +50,7 @@ public class NotificationService {
                 SELECT id, code, channel, subject_template, body_template, active, created_at, updated_at
                 FROM notification_templates
                 ORDER BY channel, code
-                """, Map.of(), (rs, rowNum) -> template(rs));
+                """, new MapSqlParameterSource(), (rs, rowNum) -> template(rs));
     }
 
     public List<NotificationResponse> history(UUID caseId, UUID riskSignalId, UUID taxpayerId, int limit) {
@@ -139,7 +139,7 @@ public class NotificationService {
                 "notifications",
                 notificationId,
                 httpRequest,
-                Map.of("channel", channel, "templateCode", template.code(), "status", delivery.status())
+                Map.<String, Object>of("channel", channel, "templateCode", template.code(), "status", delivery.status())
         );
         return one(notificationId);
     }
@@ -173,7 +173,7 @@ public class NotificationService {
                 "notifications",
                 notificationId,
                 httpRequest,
-                Map.of("responseStatus", responseStatus)
+                Map.<String, Object>of("responseStatus", responseStatus)
         );
         return one(notificationId);
     }
@@ -194,7 +194,7 @@ public class NotificationService {
                 FROM notification_templates
                 WHERE code = :code
                   AND active = true
-                """, Map.of("code", code), (rs, rowNum) -> new TemplateRecord(
+                """, new MapSqlParameterSource("code", code), (rs, rowNum) -> new TemplateRecord(
                 rs.getString("code"),
                 rs.getString("channel"),
                 rs.getString("subject_template"),
@@ -221,7 +221,7 @@ public class NotificationService {
                 LEFT JOIN risk_rules rr ON rr.id = rs.risk_rule_id
                 LEFT JOIN taxpayers t ON t.id = coalesce(c.taxpayer_id, rs.taxpayer_id)
                 WHERE c.id = :caseId
-                """, Map.of("caseId", caseId), (rs, rowNum) -> source(rs));
+                """, new MapSqlParameterSource("caseId", caseId), (rs, rowNum) -> source(rs));
         if (sources.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Case not found");
         }
@@ -238,7 +238,7 @@ public class NotificationService {
                 JOIN risk_rules rr ON rr.id = rs.risk_rule_id
                 LEFT JOIN taxpayers t ON t.id = rs.taxpayer_id
                 WHERE rs.id = :riskSignalId
-                """, Map.of("riskSignalId", riskSignalId), (rs, rowNum) -> source(rs));
+                """, new MapSqlParameterSource("riskSignalId", riskSignalId), (rs, rowNum) -> source(rs));
         if (sources.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Risk signal not found");
         }
@@ -267,7 +267,7 @@ public class NotificationService {
                 SELECT *
                 FROM notifications
                 WHERE id = :id
-                """, Map.of("id", id), (rs, rowNum) -> notification(rs));
+                """, new MapSqlParameterSource("id", id), (rs, rowNum) -> notification(rs));
         if (responses.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found");
         }
@@ -361,7 +361,8 @@ public class NotificationService {
         if (user == null) {
             return Optional.empty();
         }
-        return appUserRepository.findById(user.getUserId());
+        UUID userId = user.getUserId();
+        return userId == null ? Optional.empty() : appUserRepository.findById(userId);
     }
 
     private record TemplateRecord(String code, String channel, String subjectTemplate, String bodyTemplate) {

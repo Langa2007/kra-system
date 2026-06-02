@@ -93,7 +93,7 @@ class NotificationIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SENT"))
                 .andExpect(jsonPath("$.templateCode").value("SOFT_COMPLIANCE_EMAIL"))
-                .andExpect(jsonPath("$.messageBody").value(org.hamcrest.Matchers.containsString("VAT_OUTPUT_MISMATCH")))
+                .andExpect(jsonPath("$.messageBody").value(Objects.requireNonNull(org.hamcrest.Matchers.containsString("VAT_OUTPUT_MISMATCH"))))
                 .andExpect(jsonPath("$.recipient").value("p900000001a@example.test"))
                 .andReturn()
                 .getResponse()

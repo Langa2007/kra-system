@@ -6,7 +6,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -62,14 +61,14 @@ public class ReconciliationService {
         int resultsTouched = upsertResults(from, to, delayDays, expectedAccount);
         int riskSignalsTouched = upsertRiskSignals();
         linkRiskSignals();
-        int exceptions = jdbcTemplate.queryForObject("""
+        Integer exceptions = jdbcTemplate.queryForObject("""
                 SELECT count(*)
                 FROM reconciliation_results
                 WHERE reconciliation_date BETWEEN ? AND ?
                   AND settlement_status <> 'MATCHED'
                 """, Integer.class, from, to);
 
-        return new ReconciliationRunResponse(from, to, resultsTouched, exceptions, riskSignalsTouched);
+        return new ReconciliationRunResponse(from, to, resultsTouched, exceptions == null ? 0 : exceptions, riskSignalsTouched);
     }
 
     public List<ReconciliationResultResponse> results(String status, LocalDate from, LocalDate to, int limit) {
