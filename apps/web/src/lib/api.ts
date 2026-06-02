@@ -5,11 +5,15 @@ import type {
   DataSource,
   IngestionJob,
   LoginResponse,
+  ModelVersion,
+  ModelPrediction,
   NotificationRecord,
   NotificationTemplate,
   ReconciliationResult,
   ReconciliationRun,
   ReconciliationSummary,
+  RiskScoringDashboard,
+  RiskScoringRun,
   RiskSignal,
   RuleDefinition,
   TaxGapRanking,
@@ -212,6 +216,25 @@ export function recordNotificationResponse(
 ) {
   return request<NotificationRecord>(`/notifications/${notificationId}/response`, {
     body: { responseBody, responseStatus },
+    method: "POST",
+    token,
+  });
+}
+
+export function getRiskScoringDashboard(token: string | null) {
+  return request<RiskScoringDashboard>("/ml-risk/dashboard?limit=10", { token });
+}
+
+export function getModelPredictions(token: string | null) {
+  return request<ModelPrediction[]>("/ml-risk/predictions?limit=100", { token });
+}
+
+export function getModelVersions(token: string | null) {
+  return request<ModelVersion[]>("/ml-risk/model-versions", { token });
+}
+
+export function runRiskScoring(token: string) {
+  return request<RiskScoringRun>("/ml-risk/jobs", {
     method: "POST",
     token,
   });

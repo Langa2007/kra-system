@@ -1,0 +1,14 @@
+.git
+.ruff_cache
+node_modules
+apps/api/target
+apps/web/.next
+apps/web/node_modules
+apps/web/tsconfig.tsbuildinfo
+apps/analytics/.pytest_cache
+packages/**/__pycache__
+**/__pycache__
+**/.pytest_cache
+**/target
+**/.next
+**/node_modules

@@ -1453,57 +1453,57 @@ Add AI-assisted anomaly detection and risk ranking.
 
 ### Scope
 
-- Build analytics service.
-- Train first unsupervised anomaly model on synthetic data.
-- Generate model predictions.
-- Store model versions.
-- Store prediction explanations.
-- Combine rule scores and model scores.
-- Add model performance dashboard.
+- [x] Build analytics service.
+- [x] Train first unsupervised anomaly model on synthetic data.
+- [x] Generate model predictions.
+- [x] Store model versions.
+- [x] Store prediction explanations.
+- [x] Combine rule scores and model scores.
+- [x] Add model performance dashboard.
 
 ### Tech Stack
 
-- Python
-- FastAPI
-- scikit-learn
-- Pandas or Polars
-- MLflow
-- SHAP where applicable
-- pytest
-- Spring Boot integration client
+- [x] Python
+- [x] FastAPI
+- [x] scikit-learn
+- [x] Pandas or Polars
+- [x] MLflow
+- [x] SHAP where applicable
+- [x] pytest
+- [x] Spring Boot integration client
 
 ### Database Work
 
 Use:
 
-- model_versions
-- model_predictions
-- risk_scores
-- taxpayers
-- tax_returns
-- invoices
-- customs_declarations
-- withholding_certificates
+- [x] model_versions
+- [x] model_predictions
+- [x] risk_scores
+- [x] taxpayers
+- [x] tax_returns
+- [x] invoices
+- [x] customs_declarations
+- [x] withholding_certificates
 
 ### Initial Models
 
-- Isolation Forest for anomaly detection
-- Peer-group percentile scoring
-- Sector-based outlier detection
+- [x] Isolation Forest for anomaly detection
+- [x] Peer-group percentile scoring
+- [x] Sector-based outlier detection
 
 ### Testing Gate
 
-- Model training pipeline is reproducible.
-- Model version is stored.
-- Prediction output schema is validated.
-- Explanations include main contributing features.
-- Model never creates enforcement action without officer review.
-- Known synthetic anomalies receive higher scores than normal peers.
-- False-positive review process is documented.
+- [x] Model training pipeline is reproducible.
+- [x] Model version is stored.
+- [x] Prediction output schema is validated.
+- [x] Explanations include main contributing features.
+- [x] Model never creates enforcement action without officer review.
+- [x] Known synthetic anomalies receive higher scores than normal peers.
+- [x] False-positive review process is documented.
 
 ### Exit Criteria
 
-- AI improves prioritization while remaining explainable and governed.
+- [x] AI improves prioritization while remaining explainable and governed.
 
 ## Phase 13: Graph Intelligence
 

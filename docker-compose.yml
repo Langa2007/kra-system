@@ -1,4 +1,25 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: kra-system-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kra system}"
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your .env file}
+      SERVER_PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file}
+      JWT_TTL_MINUTES: ${JWT_TTL_MINUTES:-60}
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL:?Set DEFAULT_ADMIN_EMAIL in your .env file}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:?Set DEFAULT_ADMIN_PASSWORD in your .env file}
+      ANALYTICS_RISK_SCORING_URL: ${ANALYTICS_RISK_SCORING_URL:-http://host.docker.internal:8000/risk-scoring/train}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+
   postgres:
     image: postgres:16
     container_name: kra-system-postgres

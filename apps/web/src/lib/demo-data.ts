@@ -3,10 +3,13 @@ import type {
   CaseRecord,
   DataSource,
   IngestionJob,
+  ModelPrediction,
+  ModelVersion,
   NotificationRecord,
   NotificationTemplate,
   ReconciliationResult,
   ReconciliationSummary,
+  RiskScoringDashboard,
   RiskSignal,
   RuleDefinition,
   TaxGapRanking,
@@ -468,6 +471,121 @@ export const demoNotifications: NotificationRecord[] = [
     updatedAt: "2026-06-01T08:40:00Z",
   },
 ];
+
+export const demoModelPredictions: ModelPrediction[] = [
+  {
+    createdAt: "2026-06-02T05:30:00Z",
+    explanation: {
+      combinedScore: 91.4,
+      featureContributions: {
+        customsValueExceedsDeclaredIncome: 25,
+        invoiceSalesExceedDeclaredSales: 35,
+        peerGroupOutlierPercentile: 15,
+        riskSignalGapPressure: 20,
+        withholdingIncomeExceedsDeclaredIncome: 16.4,
+      },
+      mainContributingFeatures: [
+        "invoiceSalesExceedDeclaredSales",
+        "customsValueExceedsDeclaredIncome",
+        "riskSignalGapPressure",
+      ],
+      officerReviewRequired: true,
+      peerGroupPercentile: 100,
+      ruleScore: 82,
+    },
+    id: "prediction-amani",
+    kraPin: "P051234567A",
+    legalName: "Amani Wholesale Traders",
+    modelVersionId: "model-phase12-demo",
+    predictionType: "TAXPAYER_ANOMALY",
+    score: 96,
+    taxpayerId: "taxpayer-amani",
+  },
+  {
+    createdAt: "2026-06-02T05:30:00Z",
+    explanation: {
+      combinedScore: 83.6,
+      featureContributions: {
+        customsValueExceedsDeclaredIncome: 25,
+        invoiceSalesExceedDeclaredSales: 18.5,
+        peerGroupOutlierPercentile: 10,
+        riskSignalGapPressure: 20,
+        withholdingIncomeExceedsDeclaredIncome: 6.2,
+      },
+      mainContributingFeatures: [
+        "customsValueExceedsDeclaredIncome",
+        "riskSignalGapPressure",
+        "invoiceSalesExceedDeclaredSales",
+      ],
+      officerReviewRequired: true,
+      peerGroupPercentile: 67,
+      ruleScore: 76,
+    },
+    id: "prediction-rift",
+    kraPin: "P071122334B",
+    legalName: "Rift Valley Logistics Ltd",
+    modelVersionId: "model-phase12-demo",
+    predictionType: "TAXPAYER_ANOMALY",
+    score: 88,
+    taxpayerId: "taxpayer-rift",
+  },
+  {
+    createdAt: "2026-06-02T05:30:00Z",
+    explanation: {
+      combinedScore: 52.8,
+      featureContributions: {
+        customsValueExceedsDeclaredIncome: 0,
+        invoiceSalesExceedDeclaredSales: 7.2,
+        peerGroupOutlierPercentile: 5,
+        riskSignalGapPressure: 12,
+        withholdingIncomeExceedsDeclaredIncome: 0,
+      },
+      mainContributingFeatures: [
+        "riskSignalGapPressure",
+        "invoiceSalesExceedDeclaredSales",
+        "peerGroupOutlierPercentile",
+      ],
+      officerReviewRequired: true,
+      peerGroupPercentile: 33,
+      ruleScore: 60,
+    },
+    id: "prediction-kisumu",
+    kraPin: "C004556677K",
+    legalName: "Kisumu County Channel 4",
+    modelVersionId: "model-phase12-demo",
+    predictionType: "TAXPAYER_ANOMALY",
+    score: 48,
+    taxpayerId: "taxpayer-kisumu",
+  },
+];
+
+export const demoModelVersions: ModelVersion[] = [
+  {
+    active: true,
+    createdAt: "2026-06-02T05:30:00Z",
+    id: "model-phase12-demo",
+    metrics: {
+      algorithm: "ISOLATION_FOREST_WITH_PEER_PERCENTILE",
+      officerReviewRequired: true,
+      reproducibilitySeed: 42,
+      taxpayersTrained: 3,
+    },
+    modelName: "PHASE12_UNSUPERVISED_RISK_SCORING",
+    modelType: "UNSUPERVISED_ANOMALY",
+    trainingDataSummary:
+      "IsolationForest trained on 3 taxpayer observations and 7 engineered features",
+    version: "phase12-demo-isolation",
+  },
+];
+
+export const demoRiskScoringDashboard: RiskScoringDashboard = {
+  activeModelVersion: "phase12-demo-isolation",
+  averageCombinedScore: 75.93,
+  averageModelScore: 78,
+  highRiskCount: 2,
+  predictionCount: demoModelPredictions.length,
+  topPredictions: demoModelPredictions,
+};
 
 export const demoProfile: TaxpayerProfile = {
   county: "Nairobi",

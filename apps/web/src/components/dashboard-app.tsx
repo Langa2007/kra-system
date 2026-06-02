@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   ArrowDownUp,
   BadgeCheck,
+  BrainCircuit,
   BriefcaseBusiness,
   Database,
   FileJson,
@@ -46,6 +47,9 @@ import {
   getIngestionJobs,
   getNotificationTemplates,
   getNotifications,
+  getModelPredictions,
+  getModelVersions,
+  getRiskScoringDashboard,
   getReconciliationResults,
   getReconciliationSummary,
   getRiskSignals,
@@ -58,6 +62,7 @@ import {
   openReconciliationCase,
   recordNotificationResponse,
   runReconciliation,
+  runRiskScoring,
   sendCaseNudge,
   sendRiskNudge,
 } from "@/lib/api";
@@ -68,7 +73,10 @@ import {
   demoIngestionJobs,
   demoNotificationTemplates,
   demoNotifications,
+  demoModelPredictions,
+  demoModelVersions,
   demoProfile,
+  demoRiskScoringDashboard,
   demoRanking,
   demoReconciliationResults,
   demoReconciliationSummary,
@@ -82,10 +90,13 @@ import type {
   CaseRecord,
   DataSource,
   IngestionJob,
+  ModelPrediction,
+  ModelVersion,
   NotificationRecord,
   NotificationTemplate,
   ReconciliationResult,
   ReconciliationSummary,
+  RiskScoringDashboard,
   RiskSignal,
   RuleDefinition,
   TaxGapRanking,
@@ -102,6 +113,7 @@ type ViewKey =
   | "evidence"
   | "settlements"
   | "notifications"
+  | "ai-scoring"
   | "ingestion"
   | "rules";
 
@@ -113,6 +125,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: FileJson, key: "evidence", label: "Evidence" },
   { icon: BadgeCheck, key: "settlements", label: "Settlements" },
   { icon: Mail, key: "notifications", label: "Nudges" },
+  { icon: BrainCircuit, key: "ai-scoring", label: "AI Scoring" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
 ];
@@ -267,6 +280,24 @@ export function DashboardApp() {
     getNotifications,
     demoNotifications,
   );
+  const riskScoringDashboardQuery = useAuthedQuery(
+    ["risk-scoring-dashboard", token],
+    token,
+    getRiskScoringDashboard,
+    demoRiskScoringDashboard,
+  );
+  const modelPredictionsQuery = useAuthedQuery(
+    ["model-predictions", token],
+    token,
+    getModelPredictions,
+    demoModelPredictions,
+  );
+  const modelVersionsQuery = useAuthedQuery(
+    ["model-versions", token],
+    token,
+    getModelVersions,
+    demoModelVersions,
+  );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
   );
@@ -346,6 +377,9 @@ export function DashboardApp() {
       reconciliationResultsQuery.error,
       notificationTemplatesQuery.error,
       notificationsQuery.error,
+      riskScoringDashboardQuery.error,
+      modelPredictionsQuery.error,
+      modelVersionsQuery.error,
     ].some((error) => error instanceof ApiError && [401, 403].includes(error.status));
 
     if (!authError) {
@@ -364,6 +398,9 @@ export function DashboardApp() {
     ingestionQuery.error,
     notificationTemplatesQuery.error,
     notificationsQuery.error,
+    riskScoringDashboardQuery.error,
+    modelPredictionsQuery.error,
+    modelVersionsQuery.error,
     queryClient,
     rankingQuery.error,
     reconciliationResultsQuery.error,
@@ -476,6 +513,16 @@ export function DashboardApp() {
       );
       queryClient.invalidateQueries({ queryKey: ["notifications", token] });
       setToast("Taxpayer response recorded");
+    },
+  });
+
+  const riskScoringMutation = useMutation({
+    mutationFn: () => runRiskScoring(token as string),
+    onSuccess: (run) => {
+      queryClient.invalidateQueries({ queryKey: ["risk-scoring-dashboard", token] });
+      queryClient.invalidateQueries({ queryKey: ["model-predictions", token] });
+      queryClient.invalidateQueries({ queryKey: ["model-versions", token] });
+      setToast(`AI scoring complete: ${run.predictionsCreated} predictions`);
     },
   });
 
@@ -723,6 +770,26 @@ export function DashboardApp() {
               selectedCaseId={selectedCase?.id}
               selectedSignalId={selectedSignal?.id}
               templates={notificationTemplatesQuery.data}
+            />
+          ) : null}
+
+          {activeView === "ai-scoring" ? (
+            <AiScoringView
+              dashboard={riskScoringDashboardQuery.data}
+              isRunPending={riskScoringMutation.isPending}
+              modelVersions={modelVersionsQuery.data}
+              onRun={() => {
+                if (token) {
+                  riskScoringMutation.mutate();
+                } else {
+                  setToast("Demo AI scoring preview selected");
+                }
+              }}
+              onSelectTaxpayer={(taxpayerId) => {
+                setSelectedTaxpayerId(taxpayerId);
+                setActiveView("taxpayers");
+              }}
+              predictions={modelPredictionsQuery.data}
             />
           ) : null}
 
@@ -1748,6 +1815,219 @@ function NudgeButton({
   );
 }
 
+function AiScoringView({
+  dashboard,
+  isRunPending,
+  modelVersions,
+  onRun,
+  onSelectTaxpayer,
+  predictions,
+}: {
+  dashboard: RiskScoringDashboard;
+  isRunPending: boolean;
+  modelVersions: ModelVersion[];
+  onRun: () => void;
+  onSelectTaxpayer: (taxpayerId: string) => void;
+  predictions: ModelPrediction[];
+}) {
+  const [chartReady, setChartReady] = useState(false);
+  const topPredictions = dashboard.topPredictions.length
+    ? dashboard.topPredictions
+    : predictions.slice(0, 10);
+  const activeVersion = modelVersions.find((version) => version.active) ?? modelVersions[0] ?? null;
+  const chartData = topPredictions.slice(0, 6).map((prediction) => ({
+    combined: Number(prediction.explanation.combinedScore ?? prediction.score),
+    model: Number(prediction.score),
+    taxpayer: prediction.legalName.split(" ").slice(0, 2).join(" "),
+  }));
+  const leadingFactors = contributionRows(topPredictions[0]);
+
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
+
+  const columns = useMemo<ColumnDef<ModelPrediction>[]>(
+    () => [
+      {
+        accessorKey: "legalName",
+        cell: ({ row }) => (
+          <button
+            className="text-left font-semibold text-authority hover:underline"
+            onClick={() => onSelectTaxpayer(row.original.taxpayerId)}
+            type="button"
+          >
+            {row.original.legalName}
+          </button>
+        ),
+        header: "Taxpayer",
+      },
+      { accessorKey: "kraPin", header: "PIN" },
+      {
+        accessorKey: "score",
+        cell: ({ row }) => (
+          <span className="font-semibold text-exposure">{percent(row.original.score)}</span>
+        ),
+        header: "Model score",
+      },
+      {
+        accessorKey: "combinedScore",
+        cell: ({ row }) => percent(Number(row.original.explanation.combinedScore ?? 0)),
+        header: "Combined score",
+      },
+      {
+        accessorKey: "mainContributingFeatures",
+        cell: ({ row }) =>
+          (row.original.explanation.mainContributingFeatures ?? [])
+            .slice(0, 2)
+            .map(featureLabel)
+            .join(", ") || "-",
+        header: "Main factors",
+      },
+      {
+        accessorKey: "createdAt",
+        cell: ({ row }) => shortDate(row.original.createdAt),
+        header: "Scored",
+      },
+    ],
+    [onSelectTaxpayer],
+  );
+
+  return (
+    <div className="grid min-w-0 gap-5">
+      <Section
+        actions={
+          <button
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white hover:bg-[#1d4a40] disabled:opacity-50"
+            disabled={isRunPending}
+            onClick={onRun}
+            type="button"
+          >
+            {isRunPending ? (
+              <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+            ) : (
+              <BrainCircuit size={17} aria-hidden="true" />
+            )}
+            Run scoring
+          </button>
+        }
+        title="AI Risk Scoring"
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricLine label="Active model" value={dashboard.activeModelVersion} />
+          <MetricLine label="Predictions" value={String(dashboard.predictionCount)} />
+          <MetricLine label="High risk" value={String(dashboard.highRiskCount)} />
+          <MetricLine label="Avg model score" value={percent(dashboard.averageModelScore)} />
+          <MetricLine label="Avg combined score" value={percent(dashboard.averageCombinedScore)} />
+        </div>
+      </Section>
+
+      <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+        <Section title="Top Prediction Scores">
+          <div className="h-80">
+            {chartReady ? (
+              <ResponsiveContainer height="100%" width="100%">
+                <BarChart data={chartData} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="taxpayer" tickLine={false} />
+                  <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} width={44} />
+                  <Tooltip formatter={(value) => percent(Number(value))} />
+                  <Bar dataKey="model" fill="#a33b2f" name="Model score" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="combined"
+                    fill="#245c4f"
+                    name="Combined score"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full rounded-md border border-line bg-paper" />
+            )}
+          </div>
+        </Section>
+
+        <Section title="Explainability Snapshot">
+          <div className="grid gap-3">
+            {leadingFactors.length ? (
+              leadingFactors.map(([label, value]) => (
+                <div className="rounded-md border border-line bg-paper p-3" key={label}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">{featureLabel(label)}</p>
+                    <p className="text-sm font-semibold text-authority">{percent(value)}</p>
+                  </div>
+                  <div className="mt-3 h-2 rounded-full bg-white">
+                    <div
+                      className="h-2 rounded-full bg-authority"
+                      style={{ width: `${Math.max(0, Math.min(100, Number(value)))}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-700">No model explanations yet.</p>
+            )}
+            <Badge
+              value={
+                topPredictions[0]?.explanation.officerReviewRequired ? "OFFICER_REVIEW" : "REVIEW"
+              }
+            />
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Prediction Queue">
+        <DataTable
+          columns={columns}
+          data={predictions}
+          filter=""
+          getRowClass={(row) =>
+            Number(row.explanation.combinedScore ?? row.score) >= 70 ? "bg-exposure/5" : ""
+          }
+          onRowClick={(row) => onSelectTaxpayer(row.taxpayerId)}
+        />
+      </Section>
+
+      <Section title="Model Versions">
+        <div className="grid gap-3">
+          {modelVersions.map((version) => (
+            <article
+              className="rounded-md border border-line bg-white p-4 shadow-panel"
+              key={version.id}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase text-authority">
+                    {version.modelName}
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold">{version.version}</h3>
+                  <p className="mt-1 text-sm leading-6 text-gray-700">
+                    {version.trainingDataSummary}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge value={version.active ? "ACTIVE" : "INACTIVE"} />
+                  <Badge value={version.modelType} />
+                </div>
+              </div>
+              <pre className="mt-3 overflow-auto rounded-md bg-paper p-3 text-xs leading-5">
+                {JSON.stringify(version.metrics, null, 2)}
+              </pre>
+            </article>
+          ))}
+          {!modelVersions.length && (
+            <p className="rounded-md border border-line bg-paper p-3 text-sm text-gray-700">
+              No model versions have been stored yet.
+            </p>
+          )}
+          {activeVersion ? (
+            <p className="text-sm text-gray-700">Latest active version: {activeVersion.version}</p>
+          ) : null}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 function IngestionView({ dataSources, jobs }: { dataSources: DataSource[]; jobs: IngestionJob[] }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
@@ -2018,6 +2298,21 @@ function InfoList({ items, title }: { items: string[]; title: string }) {
 
 function titleId(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function contributionRows(prediction: ModelPrediction | undefined): Array<[string, number]> {
+  return Object.entries(prediction?.explanation.featureContributions ?? {})
+    .map(([label, value]) => [label, Number(value)] as [string, number])
+    .filter(([, value]) => value > 0)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 5);
+}
+
+function featureLabel(value: string) {
+  return value
+    .replace(/([A-Z])/g, " $1")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
 }
 
 function detailFallback(cases: CaseRecord[], selectedCaseId: string): CaseDetail {

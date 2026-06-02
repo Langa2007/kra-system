@@ -213,6 +213,55 @@ export type NotificationRecord = {
   updatedAt: string;
 };
 
+export type ModelPrediction = {
+  id: string;
+  modelVersionId: string;
+  taxpayerId: string;
+  kraPin: string;
+  legalName: string;
+  predictionType: string;
+  score: number;
+  explanation: {
+    combinedScore?: number;
+    ruleScore?: number;
+    peerGroupPercentile?: number;
+    mainContributingFeatures?: string[];
+    featureContributions?: Record<string, number>;
+    officerReviewRequired?: boolean;
+    [key: string]: unknown;
+  };
+  createdAt: string;
+};
+
+export type ModelVersion = {
+  id: string;
+  modelName: string;
+  version: string;
+  modelType: string;
+  trainingDataSummary: string;
+  metrics: Record<string, unknown>;
+  active: boolean;
+  createdAt: string;
+};
+
+export type RiskScoringDashboard = {
+  activeModelVersion: string;
+  predictionCount: number;
+  highRiskCount: number;
+  averageModelScore: number;
+  averageCombinedScore: number;
+  topPredictions: ModelPrediction[];
+};
+
+export type RiskScoringRun = {
+  modelVersionId: string;
+  modelName: string;
+  modelVersion: string;
+  taxpayersScored: number;
+  predictionsCreated: number;
+  combinedScoresCreated: number;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

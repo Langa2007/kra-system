@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
+from app.risk_scoring import TrainRiskModelRequest, TrainRiskModelResponse, train_and_score
+
 app = FastAPI(
     title="Revenue Intelligence Analytics API",
     version="0.1.0",
@@ -16,3 +18,8 @@ def health() -> dict[str, str]:
         "service": "revenue-intelligence-analytics",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
+@app.post("/risk-scoring/train", response_model=TrainRiskModelResponse, tags=["risk-scoring"])
+def train_risk_model(request: TrainRiskModelRequest) -> TrainRiskModelResponse:
+    return train_and_score(request)
