@@ -518,6 +518,19 @@ export function DashboardApp() {
 
   const riskScoringMutation = useMutation({
     mutationFn: () => runRiskScoring(token as string),
+    onError: (error) => {
+      if (error instanceof ApiError && [401, 403].includes(error.status)) {
+        window.localStorage.removeItem("kra-token");
+        window.localStorage.removeItem("kra-user");
+        setToken(null);
+        setUser(null);
+        queryClient.clear();
+        setToast("Sign in again to run live AI scoring.");
+        return;
+      }
+
+      setToast(scoringErrorMessage(error));
+    },
     onSuccess: (run) => {
       queryClient.invalidateQueries({ queryKey: ["risk-scoring-dashboard", token] });
       queryClient.invalidateQueries({ queryKey: ["model-predictions", token] });
@@ -776,13 +789,14 @@ export function DashboardApp() {
           {activeView === "ai-scoring" ? (
             <AiScoringView
               dashboard={riskScoringDashboardQuery.data}
+              isLiveSession={Boolean(token)}
               isRunPending={riskScoringMutation.isPending}
               modelVersions={modelVersionsQuery.data}
               onRun={() => {
                 if (token) {
                   riskScoringMutation.mutate();
                 } else {
-                  setToast("Demo AI scoring preview selected");
+                  setToast("Sign in to run live AI scoring.");
                 }
               }}
               onSelectTaxpayer={(taxpayerId) => {
@@ -790,6 +804,7 @@ export function DashboardApp() {
                 setActiveView("taxpayers");
               }}
               predictions={modelPredictionsQuery.data}
+              runError={riskScoringMutation.error}
             />
           ) : null}
 
@@ -934,9 +949,9 @@ function OverviewView({
 
       <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <Section title="Gap by Tax Head">
-          <div className="h-80">
-            {chartReady ? (
-              <ResponsiveContainer height="100%" width="100%">
+          <div className="h-80 min-w-0 overflow-hidden">
+            {chartReady && chartData.length ? (
+              <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
                 <BarChart data={chartData} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
                   <CartesianGrid stroke="#d9ded7" vertical={false} />
                   <XAxis dataKey="taxHead" tickLine={false} />
@@ -952,7 +967,9 @@ function OverviewView({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full rounded-md border border-line bg-paper" />
+              <div className="flex h-full items-center justify-center rounded-md border border-line bg-paper px-4 text-center text-sm font-medium text-gray-700">
+                No tax gap summary is available yet.
+              </div>
             )}
           </div>
         </Section>
@@ -1817,18 +1834,22 @@ function NudgeButton({
 
 function AiScoringView({
   dashboard,
+  isLiveSession,
   isRunPending,
   modelVersions,
   onRun,
   onSelectTaxpayer,
   predictions,
+  runError,
 }: {
   dashboard: RiskScoringDashboard;
+  isLiveSession: boolean;
   isRunPending: boolean;
   modelVersions: ModelVersion[];
   onRun: () => void;
   onSelectTaxpayer: (taxpayerId: string) => void;
   predictions: ModelPrediction[];
+  runError: unknown;
 }) {
   const [chartReady, setChartReady] = useState(false);
   const topPredictions = dashboard.topPredictions.length
@@ -1841,6 +1862,12 @@ function AiScoringView({
     taxpayer: prediction.legalName.split(" ").slice(0, 2).join(" "),
   }));
   const leadingFactors = contributionRows(topPredictions[0]);
+  const runErrorMessage = runError ? scoringErrorMessage(runError) : null;
+  const statusMessage = isLiveSession
+    ? predictions.length
+      ? "Live model output is available."
+      : "Live API is connected. Load taxpayer records, then run scoring to train the Phase 12 Python model."
+    : "Demo preview is active. Sign in to run scoring against the live backend.";
 
   useEffect(() => {
     setChartReady(true);
@@ -1898,7 +1925,7 @@ function AiScoringView({
         actions={
           <button
             className="inline-flex min-h-11 items-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white hover:bg-[#1d4a40] disabled:opacity-50"
-            disabled={isRunPending}
+            disabled={isRunPending || !isLiveSession}
             onClick={onRun}
             type="button"
           >
@@ -1907,11 +1934,22 @@ function AiScoringView({
             ) : (
               <BrainCircuit size={17} aria-hidden="true" />
             )}
-            Run scoring
+            {isLiveSession ? "Run scoring" : "Sign in to run"}
           </button>
         }
         title="AI Risk Scoring"
       >
+        <div
+          className={`mb-4 rounded-md border p-3 text-sm font-medium ${
+            runErrorMessage
+              ? "border-exposure/30 bg-exposure/5 text-exposure"
+              : isLiveSession
+                ? "border-assurance/30 bg-assurance/10 text-assurance"
+                : "border-revenue/30 bg-revenue/10 text-revenue"
+          }`}
+        >
+          {runErrorMessage ?? statusMessage}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <MetricLine label="Active model" value={dashboard.activeModelVersion} />
           <MetricLine label="Predictions" value={String(dashboard.predictionCount)} />
@@ -1923,9 +1961,9 @@ function AiScoringView({
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
         <Section title="Top Prediction Scores">
-          <div className="h-80">
-            {chartReady ? (
-              <ResponsiveContainer height="100%" width="100%">
+          <div className="h-80 min-w-0 overflow-hidden">
+            {chartReady && chartData.length ? (
+              <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
                 <BarChart data={chartData} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
                   <CartesianGrid stroke="#d9ded7" vertical={false} />
                   <XAxis dataKey="taxpayer" tickLine={false} />
@@ -1941,7 +1979,11 @@ function AiScoringView({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full rounded-md border border-line bg-paper" />
+              <div className="flex h-full items-center justify-center rounded-md border border-line bg-paper px-4 text-center text-sm font-medium text-gray-700">
+                {isLiveSession
+                  ? "No live model predictions yet."
+                  : "Demo predictions appear after the preview data loads."}
+              </div>
             )}
           </div>
         </Section>
@@ -2313,6 +2355,25 @@ function featureLabel(value: string) {
     .replace(/([A-Z])/g, " $1")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
+}
+
+function scoringErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if ([401, 403].includes(error.status)) {
+      return "Sign in with a live API session before running AI scoring.";
+    }
+
+    const message = error.message.trim();
+    if (message) {
+      return `AI scoring failed: ${message}`;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return `AI scoring failed: ${error.message}`;
+  }
+
+  return "AI scoring failed. Check that the backend, analytics service, and taxpayer data are available.";
 }
 
 function detailFallback(cases: CaseRecord[], selectedCaseId: string): CaseDetail {

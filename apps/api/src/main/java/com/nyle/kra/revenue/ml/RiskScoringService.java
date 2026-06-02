@@ -74,15 +74,7 @@ public class RiskScoringService {
                 "model_version",
                 modelVersionId,
                 request,
-                Map.of(
-                        "taxpayersScored", features.size(),
-                        "predictionsCreated", predictionCount,
-                        "combinedScoresCreated", scoreCount,
-                        "modelName", modelRun.modelName(),
-                        "modelVersion", modelRun.modelVersion(),
-                        "algorithm", modelRun.algorithm(),
-                        "mlflowRunId", modelRun.mlflowRunId()
-                )
+                auditDetails(modelRun, features.size(), predictionCount, scoreCount)
         );
         return new RiskScoringJobResponse(
                 modelVersionId,
@@ -92,6 +84,23 @@ public class RiskScoringService {
                 predictionCount,
                 scoreCount
         );
+    }
+
+    private Map<String, Object> auditDetails(
+            AnalyticsRiskScoringResponse modelRun,
+            int taxpayersScored,
+            int predictionCount,
+            int scoreCount
+    ) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("taxpayersScored", taxpayersScored);
+        details.put("predictionsCreated", predictionCount);
+        details.put("combinedScoresCreated", scoreCount);
+        details.put("modelName", modelRun.modelName());
+        details.put("modelVersion", modelRun.modelVersion());
+        details.put("algorithm", modelRun.algorithm());
+        details.put("mlflowRunId", modelRun.mlflowRunId());
+        return details;
     }
 
     public List<ModelPredictionResponse> predictions(UUID taxpayerId, int limit) {

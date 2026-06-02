@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.risk_scoring import TrainRiskModelRequest, TrainRiskModelResponse, train_and_score
 
@@ -21,5 +21,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/risk-scoring/train", response_model=TrainRiskModelResponse, tags=["risk-scoring"])
-def train_risk_model(request: TrainRiskModelRequest) -> TrainRiskModelResponse:
-    return train_and_score(request)
+async def train_risk_model(request: Request) -> TrainRiskModelResponse:
+    body = await request.body()
+    payload = {} if not body else await request.json()
+    return train_and_score(TrainRiskModelRequest.model_validate(payload))
