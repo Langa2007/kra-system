@@ -1653,7 +1653,7 @@ CREATE TABLE data_retention_policies (
 
 - The system is ready for controlled pilot conversations.
 
-## Phase 15: Reporting, BI, and Executive Analytics
+## Phase 15: Reporting, BI, and Executive Analytics ★
 
 ### Objective
 
@@ -1677,7 +1677,7 @@ Create strong reporting for leadership, audit teams, and pilot buyers.
 - [x] ECharts or Recharts
 - [x] Apache POI
 - [x] PDF generation
-- [ ] Optional Apache Superset or Power BI later
+- [x] Embedded BI-ready Next.js/Recharts reporting now; Apache Superset or Power BI can be added later
 
 ### Database Work
 
@@ -1721,40 +1721,40 @@ Prepare the product for real buyer conversations.
 
 ### Scope
 
-- Pilot proposal.
-- Demo script.
-- ROI calculator.
-- Security overview.
-- Data processing overview.
-- Deployment overview.
-- Sample evidence packs.
-- Sample dashboards.
-- Pricing model.
-- Procurement route notes.
+- [x] Pilot proposal.
+- [x] Demo script.
+- [x] ROI calculator.
+- [x] Security overview.
+- [x] Data processing overview.
+- [x] Deployment overview.
+- [x] Sample evidence packs.
+- [x] Sample dashboards.
+- [x] Pricing model.
+- [x] Procurement route notes.
 
 ### Tech Stack
 
-- Markdown docs
-- PDF exports
-- Spreadsheet model
-- Demo environment
+- [x] Markdown docs
+- [x] PDF exports
+- [x] Spreadsheet model
+- [x] Demo environment
 
 ### Database Work
 
-No new core tables.
+- [x] No new core tables.
 
 ### Testing Gate
 
-- End-to-end demo works from clean synthetic dataset.
-- ROI calculator matches dashboard outputs.
-- Pilot script covers KRA and county angles.
-- Sample evidence pack is generated live.
-- All demo users and permissions work.
-- No fake "real data" is used in demos.
+- [x] End-to-end demo works from clean synthetic dataset.
+- [x] ROI calculator matches dashboard outputs.
+- [x] Pilot script covers KRA and county angles.
+- [x] Sample evidence pack is generated live.
+- [x] All demo users and permissions work.
+- [x] No fake "real data" is used in demos.
 
 ### Exit Criteria
 
-- The product can be shown credibly to counties, KRA stakeholders, integrators, or public finance reform partners.
+- [x] The product can be shown credibly to counties, KRA stakeholders, integrators, or public finance reform partners.
 
 ## Phase 17: Government Integration Readiness
 

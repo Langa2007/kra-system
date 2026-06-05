@@ -123,6 +123,18 @@ test("supports voluntary compliance nudges in demo mode", async ({ page }) => {
   await expect(page.getByText("Demo taxpayer response previewed")).toBeVisible();
 });
 
+test("shows the phase 16 pilot readiness package", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByTestId("nav-pilot").click();
+  await expect(page.getByRole("heading", { name: "Pilot Readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ROI Calculator" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pilot Documents" })).toBeVisible();
+  await expect(page.getByText("docs/phase16/pilot-proposal.md")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pilot PDF" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ROI Workbook" })).toBeVisible();
+});
+
 test("handles a large synthetic risk queue with filtering", async ({ page }) => {
   const syntheticSignals = Array.from({ length: 200 }, (_, index) => ({
     confidenceScore: 80 + (index % 15),

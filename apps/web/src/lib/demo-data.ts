@@ -15,6 +15,7 @@ import type {
   RuleDefinition,
   AuditPipelineReport,
   OfficerProductivityReport,
+  PilotPackage,
   RevenueRecoveryReport,
   TaxGapByRegionReport,
   TaxGapBySectorReport,
@@ -250,6 +251,116 @@ export const demoAuditPipeline: AuditPipelineReport[] = [
     status: "CLOSED",
   },
 ];
+
+export const demoPilotPackage: PilotPackage = {
+  buyerReadiness: "Controlled pilot and buyer conversation ready",
+  dataProcessingOverview:
+    "Synthetic data is the default demo source. Approved pilot data can be loaded by source system, mapped, validated, and audited before any dashboard or evidence pack is shown.",
+  demoUsers: [
+    {
+      demoTask: "Review revenue gap and pilot ROI.",
+      permissions: ["View dashboards", "Review ROI", "Approve pilot scope"],
+      role: "EXECUTIVE",
+      user: "Commissioner or county finance lead",
+    },
+    {
+      demoTask: "Move a risk signal into an evidence-backed case.",
+      permissions: ["Review risk queue", "Open cases", "Generate evidence"],
+      role: "OFFICER",
+      user: "Compliance officer",
+    },
+    {
+      demoTask: "Confirm governance controls and export readiness.",
+      permissions: ["Manage users", "Review security", "Export reports"],
+      role: "ADMIN",
+      user: "Platform administrator",
+    },
+    {
+      demoTask: "Verify no real taxpayer data is used without approval.",
+      permissions: ["Audit logs", "Privacy checklist", "Evidence packs"],
+      role: "AUDITOR",
+      user: "Internal audit or data protection reviewer",
+    },
+  ],
+  deploymentOverview:
+    "Local Docker Compose for demos, then Spring Boot, PostgreSQL, Next.js, MinIO, Neo4j, and Keycloak-compatible identity for controlled pilot environments.",
+  documents: [
+    {
+      filePath: "docs/phase16/pilot-proposal.md",
+      purpose: "Buyer alignment",
+      summary: "Pilot scope, stakeholders, success measures, and delivery plan.",
+      title: "Pilot Proposal",
+    },
+    {
+      filePath: "docs/phase16/demo-script.md",
+      purpose: "Live walkthrough",
+      summary: "KRA and county demo path from dashboard to evidence pack.",
+      title: "Demo Script",
+    },
+    {
+      filePath: "docs/phase16/security-overview.md",
+      purpose: "Risk review",
+      summary: "Authentication, authorization, audit logging, privacy, and export controls.",
+      title: "Security Overview",
+    },
+    {
+      filePath: "docs/phase16/data-processing-overview.md",
+      purpose: "Data governance",
+      summary: "Synthetic-first demo policy and approved pilot data handling.",
+      title: "Data Processing Overview",
+    },
+    {
+      filePath: "docs/phase16/deployment-overview.md",
+      purpose: "Technical readiness",
+      summary: "Local demo environment and controlled pilot deployment pattern.",
+      title: "Deployment Overview",
+    },
+    {
+      filePath: "docs/phase16/sample-evidence-packs.md",
+      purpose: "Officer review",
+      summary: "Evidence pack structure and sample synthetic case scenarios.",
+      title: "Sample Evidence Packs",
+    },
+    {
+      filePath: "docs/phase16/pricing-procurement.md",
+      purpose: "Commercial readiness",
+      summary: "Pricing model, buyer routes, and procurement notes.",
+      title: "Pricing and Procurement",
+    },
+  ],
+  phase: "Phase 16",
+  pilotObjective:
+    "Demonstrate explainable revenue recovery, settlement assurance, and officer workflow using synthetic or approved pilot data only.",
+  pricingModel:
+    "Annual license plus implementation fee, with optional success-based components only where public procurement rules permit.",
+  procurementRoutes: [
+    "Controlled proof of concept under innovation or ICT sandbox approval.",
+    "County own-source revenue pilot with implementation services.",
+    "Integrator-led deployment where the platform is the intelligence layer.",
+    "Annual government software license plus implementation and support.",
+  ],
+  roi: {
+    collectedAmount: 2750000,
+    estimatedGap: 65700000,
+    expectedCollectionRate: 0.18,
+    expectedRecoveredRevenue: 2422080,
+    netBenefit: -16077840,
+    openCases: 5,
+    paybackMonths: 91.66,
+    pilotCost: 18500000,
+    recoverableTax: 13456000,
+    roiMultiple: 0.1309,
+    settlementVariance: 4300000,
+  },
+  sampleDashboards: [
+    "Executive revenue gap dashboard",
+    "Sector risk dashboard",
+    "Regional risk dashboard",
+    "Audit pipeline dashboard",
+    "Settlement variance dashboard",
+    "Pilot ROI calculator",
+  ],
+};
 
 export const demoCases: CaseRecord[] = [
   {

@@ -41,6 +41,8 @@ import {
   addCaseNote,
   createCase,
   downloadEvidencePackPdf,
+  downloadPilotPackagePdf,
+  downloadRoiCalculator,
   downloadTaxGapBySectorExport,
   generateEvidencePack,
   getAdminGovernance,
@@ -52,6 +54,7 @@ import {
   getNotificationTemplates,
   getNotifications,
   getOfficerProductivity,
+  getPilotPackage,
   getRevenueRecovery,
   getModelPredictions,
   getModelVersions,
@@ -87,6 +90,7 @@ import {
   demoNotificationTemplates,
   demoNotifications,
   demoOfficerProductivity,
+  demoPilotPackage,
   demoRevenueRecovery,
   demoModelPredictions,
   demoModelVersions,
@@ -115,6 +119,7 @@ import type {
   NotificationRecord,
   NotificationTemplate,
   OfficerProductivityReport,
+  PilotPackage,
   ReconciliationResult,
   ReconciliationSummary,
   RevenueRecoveryReport,
@@ -140,6 +145,7 @@ type ViewKey =
   | "notifications"
   | "ai-scoring"
   | "reports"
+  | "pilot"
   | "ingestion"
   | "rules"
   | "governance";
@@ -153,7 +159,8 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: BadgeCheck, key: "settlements", label: "Settlements" },
   { icon: Mail, key: "notifications", label: "Nudges" },
   { icon: BrainCircuit, key: "ai-scoring", label: "AI Scoring" },
-  { icon: FileText, key: "reports", label: "Reports" },
+  { icon: FileText, key: "reports", label: "Executive Analytics" },
+  { icon: Gavel, key: "pilot", label: "Pilot Readiness" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
   { icon: ShieldCheck, key: "governance", label: "Governance" },
@@ -362,6 +369,12 @@ export function DashboardApp() {
     token,
     getAuditPipeline,
     demoAuditPipeline,
+  );
+  const pilotPackageQuery = useAuthedQuery(
+    ["pilot-package", token],
+    token,
+    getPilotPackage,
+    demoPilotPackage,
   );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
@@ -628,6 +641,29 @@ export function DashboardApp() {
       setToast(error instanceof Error ? error.message : "Report export failed.");
     },
     onSuccess: (format) => setToast(`Tax gap by sector ${format.toUpperCase()} exported.`),
+  });
+  const pilotExportMutation = useMutation({
+    mutationFn: async (kind: "pdf" | "xlsx") => {
+      if (!token) {
+        throw new Error("Sign in to export the live pilot package.");
+      }
+      const blob =
+        kind === "pdf" ? await downloadPilotPackagePdf(token) : await downloadRoiCalculator(token);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = kind === "pdf" ? "phase16-pilot-package.pdf" : "phase16-roi-calculator.xlsx";
+      link.click();
+      window.URL.revokeObjectURL(url);
+      return kind;
+    },
+    onError: (error) => {
+      setToast(error instanceof Error ? error.message : "Pilot package export failed.");
+    },
+    onSuccess: (kind) =>
+      setToast(
+        kind === "pdf" ? "Pilot package PDF exported." : "ROI calculator workbook exported.",
+      ),
   });
   const graphExtractionMutation = useMutation({
     mutationFn: () => runGraphExtraction(token as string),
@@ -944,8 +980,25 @@ export function DashboardApp() {
                 }
               }}
               revenueRecovery={revenueRecoveryQuery.data}
+              settlementResults={reconciliationResultsQuery.data}
+              settlementSummary={reconciliationSummaryQuery.data}
               taxGapByRegion={taxGapByRegionQuery.data}
               taxGapBySector={taxGapBySectorQuery.data}
+            />
+          ) : null}
+
+          {activeView === "pilot" ? (
+            <PilotReadinessView
+              isExporting={pilotExportMutation.isPending}
+              isLiveSession={Boolean(token)}
+              onExport={(kind) => {
+                if (token) {
+                  pilotExportMutation.mutate(kind);
+                } else {
+                  setToast("Sign in to export the live pilot package.");
+                }
+              }}
+              packageData={pilotPackageQuery.data}
             />
           ) : null}
 
@@ -1150,6 +1203,8 @@ function ReportsView({
   officerProductivity,
   onExport,
   revenueRecovery,
+  settlementResults,
+  settlementSummary,
   taxGapByRegion,
   taxGapBySector,
 }: {
@@ -1159,6 +1214,8 @@ function ReportsView({
   officerProductivity: OfficerProductivityReport[];
   onExport: (format: "csv" | "xlsx" | "pdf") => void;
   revenueRecovery: RevenueRecoveryReport[];
+  settlementResults: ReconciliationResult[];
+  settlementSummary: ReconciliationSummary;
   taxGapByRegion: TaxGapByRegionReport[];
   taxGapBySector: TaxGapBySectorReport[];
 }) {
@@ -1212,6 +1269,41 @@ function ReportsView({
   );
   const collected = filteredRecovery.reduce((sum, row) => sum + Number(row.collectedAmount), 0);
   const openCases = filteredPipeline.reduce((sum, row) => sum + Number(row.caseCount), 0);
+  const assessed = filteredRecovery.reduce((sum, row) => sum + Number(row.assessedAmount), 0);
+  const agreed = filteredRecovery.reduce((sum, row) => sum + Number(row.agreedAmount), 0);
+  const settlementVariance = settlementResults.reduce(
+    (sum, row) => sum + Number(row.varianceAmount),
+    0,
+  );
+
+  const taxHeadRows = Array.from(
+    filteredSector
+      .reduce(
+        (map, row) => {
+          const current = map.get(row.taxHead) ?? {
+            estimatedGap: 0,
+            estimatedRecoverableTax: 0,
+            taxpayerCount: 0,
+            taxHead: row.taxHead,
+          };
+          current.estimatedGap += Number(row.estimatedGap);
+          current.estimatedRecoverableTax += Number(row.estimatedRecoverableTax);
+          current.taxpayerCount += Number(row.taxpayerCount);
+          map.set(row.taxHead, current);
+          return map;
+        },
+        new Map<
+          string,
+          {
+            estimatedGap: number;
+            estimatedRecoverableTax: number;
+            taxpayerCount: number;
+            taxHead: string;
+          }
+        >(),
+      )
+      .values(),
+  ).sort((left, right) => right.estimatedGap - left.estimatedGap);
 
   const sectorChart = filteredSector.slice(0, 8).map((row) => ({
     gap: row.estimatedGap,
@@ -1223,10 +1315,74 @@ function ReportsView({
     recoverable: row.estimatedRecoverableTax,
     region: row.region,
   }));
+  const taxHeadChart = taxHeadRows.slice(0, 8).map((row) => ({
+    gap: row.estimatedGap,
+    recoverable: row.estimatedRecoverableTax,
+    taxHead: row.taxHead.replace("_", " "),
+  }));
+  const recoveryChart = filteredRecovery.slice(0, 10).map((row) => ({
+    assessed: row.assessedAmount,
+    collected: row.collectedAmount,
+    label: `${row.period} ${row.taxHead.replace("_", " ")}`,
+  }));
+  const settlementChart = settlementResults
+    .filter((row) => Number(row.varianceAmount) > 0)
+    .slice(0, 8)
+    .map((row) => ({
+      channel: row.revenueChannel,
+      variance: row.varianceAmount,
+    }));
+
+  const dashboardLinks = [
+    "Executive Revenue Gap Dashboard",
+    "Sector Risk Dashboard",
+    "Regional Risk Dashboard",
+    "Tax Head Dashboard",
+    "Audit Pipeline Dashboard",
+    "Officer Productivity Dashboard",
+    "Revenue Recovery Dashboard",
+    "Settlement Variance Dashboard",
+    "Exportable Reports",
+  ];
 
   const sectorColumns = useMemo<ColumnDef<TaxGapBySectorReport>[]>(
     () => [
       { accessorKey: "sectorName", header: "Sector" },
+      { accessorKey: "taxHead", header: "Tax head" },
+      { accessorKey: "taxpayerCount", header: "Taxpayers" },
+      {
+        accessorKey: "estimatedGap",
+        cell: ({ row }) => money(row.original.estimatedGap),
+        header: "Gap",
+      },
+      {
+        accessorKey: "estimatedRecoverableTax",
+        cell: ({ row }) => money(row.original.estimatedRecoverableTax),
+        header: "Recoverable",
+      },
+    ],
+    [],
+  );
+  const regionColumns = useMemo<ColumnDef<TaxGapByRegionReport>[]>(
+    () => [
+      { accessorKey: "region", header: "Region" },
+      { accessorKey: "taxHead", header: "Tax head" },
+      { accessorKey: "taxpayerCount", header: "Taxpayers" },
+      {
+        accessorKey: "estimatedGap",
+        cell: ({ row }) => money(row.original.estimatedGap),
+        header: "Gap",
+      },
+      {
+        accessorKey: "estimatedRecoverableTax",
+        cell: ({ row }) => money(row.original.estimatedRecoverableTax),
+        header: "Recoverable",
+      },
+    ],
+    [],
+  );
+  const taxHeadColumns = useMemo<ColumnDef<(typeof taxHeadRows)[number]>[]>(
+    () => [
       { accessorKey: "taxHead", header: "Tax head" },
       { accessorKey: "taxpayerCount", header: "Taxpayers" },
       {
@@ -1282,28 +1438,75 @@ function ReportsView({
     ],
     [],
   );
+  const recoveryColumns = useMemo<ColumnDef<RevenueRecoveryReport>[]>(
+    () => [
+      { accessorKey: "period", header: "Period" },
+      { accessorKey: "taxHead", header: "Tax head" },
+      { accessorKey: "recoveryRecords", header: "Records" },
+      {
+        accessorKey: "assessedAmount",
+        cell: ({ row }) => money(row.original.assessedAmount),
+        header: "Assessed",
+      },
+      {
+        accessorKey: "agreedAmount",
+        cell: ({ row }) => money(row.original.agreedAmount),
+        header: "Agreed",
+      },
+      {
+        accessorKey: "collectedAmount",
+        cell: ({ row }) => money(row.original.collectedAmount),
+        header: "Collected",
+      },
+    ],
+    [],
+  );
+  const settlementColumns = useMemo<ColumnDef<ReconciliationResult>[]>(
+    () => [
+      { accessorKey: "collectingAgency", header: "Agency" },
+      { accessorKey: "revenueChannel", header: "Channel" },
+      {
+        accessorKey: "expectedAmount",
+        cell: ({ row }) => money(row.original.expectedAmount),
+        header: "Expected",
+      },
+      {
+        accessorKey: "settledAmount",
+        cell: ({ row }) => money(row.original.settledAmount),
+        header: "Settled",
+      },
+      {
+        accessorKey: "varianceAmount",
+        cell: ({ row }) => money(row.original.varianceAmount),
+        header: "Variance",
+      },
+      {
+        accessorKey: "settlementStatus",
+        cell: ({ row }) => <Badge value={row.original.settlementStatus} />,
+        header: "Status",
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-5">
-      <Section
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {(["csv", "xlsx", "pdf"] as const).map((format) => (
-              <button
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold hover:border-authority hover:text-authority disabled:opacity-50"
-                disabled={isExporting}
-                key={format}
-                onClick={() => onExport(format)}
-                type="button"
-              >
-                <FileText size={16} aria-hidden="true" />
-                {format.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        }
-        title="Executive Reports"
-      >
+      <Section title="Phase 15 Dashboard Index">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {dashboardLinks.map((label) => (
+            <a
+              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-paper px-3 text-sm font-semibold hover:border-authority hover:text-authority"
+              href={`#${titleId(label)}`}
+              key={label}
+            >
+              <Activity size={16} aria-hidden="true" />
+              {label}
+            </a>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Executive Revenue Gap Dashboard">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricLine label="Estimated gap" value={money(totalGap)} />
           <MetricLine label="Recoverable tax" value={money(totalRecoverable)} />
@@ -1349,7 +1552,7 @@ function ReportsView({
       </Section>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <Section title="Sector Risk">
+        <Section title="Sector Risk Dashboard">
           <div className="h-80 min-w-0 overflow-hidden">
             {chartReady && sectorChart.length ? (
               <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
@@ -1371,9 +1574,12 @@ function ReportsView({
               <EmptyState label="No sector report rows match the filters." />
             )}
           </div>
+          <div className="mt-4">
+            <DataTable columns={sectorColumns} data={filteredSector} filter="" />
+          </div>
         </Section>
 
-        <Section title="Regional Risk">
+        <Section title="Regional Risk Dashboard">
           <div className="h-80 min-w-0 overflow-hidden">
             {chartReady && regionChart.length ? (
               <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
@@ -1395,20 +1601,315 @@ function ReportsView({
               <EmptyState label="No regional report rows match the filters." />
             )}
           </div>
+          <div className="mt-4">
+            <DataTable columns={regionColumns} data={filteredRegion} filter="" />
+          </div>
         </Section>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-        <Section title="Tax Gap by Sector">
-          <DataTable columns={sectorColumns} data={filteredSector} filter="" />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Tax Head Dashboard">
+          <div className="h-80 min-w-0 overflow-hidden">
+            {chartReady && taxHeadChart.length ? (
+              <ResponsiveContainer height="100%" minHeight={320} minWidth={0} width="100%">
+                <BarChart data={taxHeadChart} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="taxHead" tickLine={false} />
+                  <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="gap" fill="#a33b2f" name="Estimated gap" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="recoverable"
+                    fill="#245c4f"
+                    name="Recoverable"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState label="No tax head report rows match the filters." />
+            )}
+          </div>
+          <div className="mt-4">
+            <DataTable columns={taxHeadColumns} data={taxHeadRows} filter="" />
+          </div>
         </Section>
-        <Section title="Audit Pipeline">
+
+        <Section title="Audit Pipeline Dashboard">
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <MetricLine label="Cases" value={String(openCases)} />
+            <MetricLine
+              label="Recoverable"
+              value={money(
+                filteredPipeline.reduce(
+                  (sum, row) => sum + Number(row.estimatedRecoverableAmount),
+                  0,
+                ),
+              )}
+            />
+            <MetricLine
+              label="Collected"
+              value={money(
+                filteredPipeline.reduce((sum, row) => sum + Number(row.collectedAmount), 0),
+              )}
+            />
+          </div>
           <DataTable columns={pipelineColumns} data={filteredPipeline} filter="" />
         </Section>
       </div>
 
-      <Section title="Officer Productivity">
-        <DataTable columns={officerColumns} data={filteredOfficers} filter="" />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Officer Productivity Dashboard">
+          <DataTable columns={officerColumns} data={filteredOfficers} filter="" />
+        </Section>
+
+        <Section title="Revenue Recovery Dashboard">
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <MetricLine label="Assessed" value={money(assessed)} />
+            <MetricLine label="Agreed" value={money(agreed)} />
+            <MetricLine label="Collected" value={money(collected)} />
+          </div>
+          <div className="h-72 min-w-0 overflow-hidden">
+            {chartReady && recoveryChart.length ? (
+              <ResponsiveContainer height="100%" minHeight={288} minWidth={0} width="100%">
+                <BarChart data={recoveryChart} margin={{ bottom: 8, left: 8, right: 12, top: 12 }}>
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} />
+                  <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="assessed" fill="#a33b2f" name="Assessed" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="collected" fill="#245c4f" name="Collected" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState label="No revenue recovery report rows match the filters." />
+            )}
+          </div>
+          <div className="mt-4">
+            <DataTable columns={recoveryColumns} data={filteredRecovery} filter="" />
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Settlement Variance Dashboard">
+        <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MetricLine label="Expected" value={money(settlementSummary.expectedAmount)} />
+            <MetricLine label="Settled" value={money(settlementSummary.settledAmount)} />
+            <MetricLine label="Variance" value={money(settlementVariance)} />
+            <MetricLine label="Exceptions" value={String(settlementSummary.exceptionCount)} />
+            <MetricLine label="Missing" value={String(settlementSummary.missingCount)} />
+            <MetricLine label="Delayed" value={String(settlementSummary.delayedCount)} />
+          </div>
+          <div className="h-72 min-w-0 overflow-hidden">
+            {chartReady && settlementChart.length ? (
+              <ResponsiveContainer height="100%" minHeight={288} minWidth={0} width="100%">
+                <BarChart
+                  data={settlementChart}
+                  margin={{ bottom: 8, left: 8, right: 12, top: 12 }}
+                >
+                  <CartesianGrid stroke="#d9ded7" vertical={false} />
+                  <XAxis dataKey="channel" tickLine={false} />
+                  <YAxis tickFormatter={(value) => `${Number(value) / 1_000_000}M`} width={48} />
+                  <Tooltip formatter={(value) => money(Number(value))} />
+                  <Bar dataKey="variance" fill="#a33b2f" name="Variance" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState label="No settlement variance exceptions are available." />
+            )}
+          </div>
+        </div>
+        <div className="mt-4">
+          <DataTable columns={settlementColumns} data={settlementResults} filter="" />
+        </div>
+      </Section>
+
+      <Section
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {(["csv", "xlsx", "pdf"] as const).map((format) => (
+              <button
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold hover:border-authority hover:text-authority disabled:opacity-50"
+                disabled={isExporting}
+                key={format}
+                onClick={() => onExport(format)}
+                type="button"
+              >
+                <FileText size={16} aria-hidden="true" />
+                {format.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        }
+        title="Exportable Reports"
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MetricLine label="CSV export" value="Tax gap by sector" />
+          <MetricLine label="XLSX export" value="Tax gap by sector" />
+          <MetricLine label="PDF export" value="Tax gap by sector" />
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function PilotReadinessView({
+  isExporting,
+  isLiveSession,
+  onExport,
+  packageData,
+}: {
+  isExporting: boolean;
+  isLiveSession: boolean;
+  onExport: (kind: "pdf" | "xlsx") => void;
+  packageData: PilotPackage;
+}) {
+  const roi = packageData.roi;
+  const collectionRate = `${Math.round(roi.expectedCollectionRate * 100)}%`;
+  const roiMultiple = `${Number(roi.roiMultiple).toFixed(2)}x`;
+  const paybackMonths = roi.paybackMonths
+    ? `${Number(roi.paybackMonths).toFixed(1)} months`
+    : "Not reached";
+
+  return (
+    <div className="space-y-5">
+      <Section title="Pilot Readiness">
+        <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+          <div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Badge value={packageData.phase} />
+              <Badge value={isLiveSession ? "Live package" : "Demo package"} />
+            </div>
+            <h2 className="text-xl font-semibold">{packageData.buyerReadiness}</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-700">{packageData.pilotObjective}</p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-authority px-4 text-sm font-semibold text-white disabled:opacity-60"
+              disabled={isExporting}
+              onClick={() => onExport("pdf")}
+              type="button"
+            >
+              {isExporting ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <FileText size={16} />
+              )}
+              Pilot PDF
+            </button>
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-authority px-4 text-sm font-semibold text-authority disabled:opacity-60"
+              disabled={isExporting}
+              onClick={() => onExport("xlsx")}
+              type="button"
+            >
+              {isExporting ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <ArrowDownUp size={16} />
+              )}
+              ROI Workbook
+            </button>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="ROI Calculator">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricLine label="Recoverable tax" value={money(roi.recoverableTax)} />
+          <MetricLine label="Expected recovery" value={money(roi.expectedRecoveredRevenue)} />
+          <MetricLine label="Net benefit" value={money(roi.netBenefit)} />
+          <MetricLine label="ROI multiple" value={roiMultiple} />
+          <MetricLine label="Estimated gap" value={money(roi.estimatedGap)} />
+          <MetricLine label="Pilot cost" value={money(roi.pilotCost)} />
+          <MetricLine label="Collection rate" value={collectionRate} />
+          <MetricLine label="Payback" value={paybackMonths} />
+        </div>
+        <p className="mt-3 text-sm text-gray-700">
+          Current dashboard outputs include {money(roi.collectedAmount)} already collected,{" "}
+          {money(roi.settlementVariance)} settlement variance, and {roi.openCases} open pilot cases.
+        </p>
+      </Section>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Pilot Documents">
+          <div className="grid gap-3">
+            {packageData.documents.map((document) => (
+              <div className="rounded-md border border-line bg-white p-3" key={document.filePath}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">{document.title}</h3>
+                  <Badge value={document.purpose} />
+                </div>
+                <p className="mt-2 text-sm text-gray-700">{document.summary}</p>
+                <p className="mt-2 text-xs font-semibold text-gray-500">{document.filePath}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Demo Users">
+          <div className="grid gap-3">
+            {packageData.demoUsers.map((persona) => (
+              <div className="rounded-md border border-line bg-white p-3" key={persona.role}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">{persona.user}</h3>
+                  <Badge value={persona.role} />
+                </div>
+                <p className="mt-2 text-sm text-gray-700">{persona.demoTask}</p>
+                <p className="mt-2 text-xs font-semibold text-gray-500">
+                  {persona.permissions.join(" / ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Sample Dashboards">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {packageData.sampleDashboards.map((label) => (
+              <div
+                className="inline-flex min-h-11 items-center gap-2 rounded-md border border-line bg-paper px-3 text-sm font-semibold"
+                key={label}
+              >
+                <Activity size={16} aria-hidden="true" />
+                {label}
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Procurement Routes">
+          <div className="space-y-3">
+            {packageData.procurementRoutes.map((route) => (
+              <div
+                className="rounded-md border border-line bg-white p-3 text-sm text-gray-700"
+                key={route}
+              >
+                {route}
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      <Section title="Pilot Controls">
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="rounded-md border border-line bg-white p-3">
+            <h3 className="font-semibold">Data Processing</h3>
+            <p className="mt-2 text-sm text-gray-700">{packageData.dataProcessingOverview}</p>
+          </div>
+          <div className="rounded-md border border-line bg-white p-3">
+            <h3 className="font-semibold">Deployment</h3>
+            <p className="mt-2 text-sm text-gray-700">{packageData.deploymentOverview}</p>
+          </div>
+          <div className="rounded-md border border-line bg-white p-3">
+            <h3 className="font-semibold">Pricing</h3>
+            <p className="mt-2 text-sm text-gray-700">{packageData.pricingModel}</p>
+          </div>
+        </div>
       </Section>
     </div>
   );

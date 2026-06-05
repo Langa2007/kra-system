@@ -462,6 +462,48 @@ export type AuditPipelineReport = {
   collectedAmount: number;
 };
 
+export type RoiSummary = {
+  estimatedGap: number;
+  recoverableTax: number;
+  collectedAmount: number;
+  settlementVariance: number;
+  openCases: number;
+  pilotCost: number;
+  expectedCollectionRate: number;
+  expectedRecoveredRevenue: number;
+  netBenefit: number;
+  roiMultiple: number;
+  paybackMonths: number;
+};
+
+export type PilotDocument = {
+  title: string;
+  purpose: string;
+  filePath: string;
+  summary: string;
+};
+
+export type DemoUserPersona = {
+  role: string;
+  user: string;
+  permissions: string[];
+  demoTask: string;
+};
+
+export type PilotPackage = {
+  phase: string;
+  buyerReadiness: string;
+  pilotObjective: string;
+  roi: RoiSummary;
+  documents: PilotDocument[];
+  demoUsers: DemoUserPersona[];
+  sampleDashboards: string[];
+  procurementRoutes: string[];
+  dataProcessingOverview: string;
+  deploymentOverview: string;
+  pricingModel: string;
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

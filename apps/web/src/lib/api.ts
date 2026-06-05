@@ -20,6 +20,7 @@ import type {
   RuleDefinition,
   AuditPipelineReport,
   OfficerProductivityReport,
+  PilotPackage,
   RevenueRecoveryReport,
   TaxGapByRegionReport,
   TaxGapBySectorReport,
@@ -283,10 +284,46 @@ export function getAuditPipeline(token: string | null) {
   return request<AuditPipelineReport[]>("/reports/audit-pipeline", { token });
 }
 
+export function getPilotPackage(token: string | null) {
+  return request<PilotPackage>("/commercial/pilot-package", { token });
+}
+
 export async function downloadTaxGapBySectorExport(token: string, format: "csv" | "xlsx" | "pdf") {
   const response = await fetch(`${API_PREFIX}/reports/exports/tax-gap-by-sector.${format}`, {
     headers: {
       Accept: "*/*",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || response.statusText, response.status);
+  }
+
+  return response.blob();
+}
+
+export async function downloadPilotPackagePdf(token: string) {
+  const response = await fetch(`${API_PREFIX}/commercial/exports/pilot-package.pdf`, {
+    headers: {
+      Accept: "application/pdf",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new ApiError(message || response.statusText, response.status);
+  }
+
+  return response.blob();
+}
+
+export async function downloadRoiCalculator(token: string) {
+  const response = await fetch(`${API_PREFIX}/commercial/exports/roi-calculator.xlsx`, {
+    headers: {
+      Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       Authorization: `Bearer ${token}`,
     },
   });
