@@ -34,7 +34,9 @@ data/synthetic/
 Thumbs.db
 .DS_Store
 
-docs/*
+docs
 !docs/phase16/
 !docs/phase16/**
+!docs/phase17/
+!docs/phase17/**
 BUILD_PHASES.md

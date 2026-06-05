@@ -135,6 +135,19 @@ test("shows the phase 16 pilot readiness package", async ({ page }) => {
   await expect(page.getByRole("button", { name: "ROI Workbook" })).toBeVisible();
 });
 
+test("shows the phase 17 government integration readiness dashboard", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByTestId("nav-integrations").click();
+  await expect(page.getByRole("heading", { name: "Government Integrations" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Government REST API" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Approved SFTP Drop" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Read-only Database Connector" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Schema Mappings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "COUNTY_PERMITS_SFTP" })).toBeVisible();
+  await expect(page.getByText("CONTROLLED RETRY")).toBeVisible();
+});
+
 test("handles a large synthetic risk queue with filtering", async ({ page }) => {
   const syntheticSignals = Array.from({ length: 200 }, (_, index) => ({
     confidenceScore: 80 + (index % 15),

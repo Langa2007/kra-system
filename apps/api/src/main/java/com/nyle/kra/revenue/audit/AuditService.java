@@ -27,6 +27,8 @@ public class AuditService {
     public static final String EVIDENCE_PACK_GENERATED = "EVIDENCE_PACK_GENERATED";
     public static final String NOTIFICATION_SENT = "NOTIFICATION_SENT";
     public static final String TAXPAYER_RESPONSE_RECORDED = "TAXPAYER_RESPONSE_RECORDED";
+    public static final String SOURCE_SCHEMA_MAPPING_CREATED = "SOURCE_SCHEMA_MAPPING_CREATED";
+    public static final String INTEGRATION_ADAPTER_TESTED = "INTEGRATION_ADAPTER_TESTED";
 
     private final AuditLogRepository auditLogRepository;
 

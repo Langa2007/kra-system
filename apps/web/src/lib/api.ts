@@ -5,6 +5,7 @@ import type {
   GraphExtractionRun,
   CaseRecord,
   DataSource,
+  GovernmentIntegrationReadiness,
   IngestionJob,
   LoginResponse,
   ModelVersion,
@@ -286,6 +287,10 @@ export function getAuditPipeline(token: string | null) {
 
 export function getPilotPackage(token: string | null) {
   return request<PilotPackage>("/commercial/pilot-package", { token });
+}
+
+export function getGovernmentIntegrations(token: string | null) {
+  return request<GovernmentIntegrationReadiness>("/integrations/readiness", { token });
 }
 
 export async function downloadTaxGapBySectorExport(token: string, format: "csv" | "xlsx" | "pdf") {

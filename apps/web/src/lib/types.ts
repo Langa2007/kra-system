@@ -504,6 +504,67 @@ export type PilotPackage = {
   pricingModel: string;
 };
 
+export type AdapterTemplate = {
+  adapterType: string;
+  label: string;
+  approvedChannel: string;
+  ingestionMethod: string;
+  requiredControls: string[];
+  connectionTemplate: Record<string, unknown>;
+};
+
+export type SourceSchemaMapping = {
+  id: string;
+  dataSourceId: string;
+  dataSourceCode: string;
+  targetEntity: string;
+  sourceSchema: Record<string, unknown>;
+  mappingConfig: Record<string, unknown>;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SourceFreshness = {
+  dataSourceCode: string;
+  dataSourceName: string;
+  ownerAgency: string | null;
+  ingestionMethod: string;
+  integrationStatus: string;
+  lastSuccessfulIngestionAt: string | null;
+  expectedFreshnessMinutes: number;
+  minutesSinceLastSuccess: number;
+  late: boolean;
+  alertLevel: string;
+};
+
+export type IntegrationError = {
+  jobId: string;
+  dataSourceCode: string;
+  fileName: string | null;
+  status: string;
+  retryCount: number;
+  maxRetries: number;
+  nextRetryAt: string | null;
+  errorSummary: string | null;
+  retryControlled: boolean;
+};
+
+export type GovernmentIntegrationReadiness = {
+  phase: string;
+  dataSources: number;
+  activeSources: number;
+  schemaMappingCount: number;
+  lateSources: number;
+  controlledRetryErrors: number;
+  adapterTemplates: AdapterTemplate[];
+  schemaMappings: SourceSchemaMapping[];
+  freshness: SourceFreshness[];
+  integrationErrors: IntegrationError[];
+  securityControls: string[];
+  dataProcessingAgreementSections: string[];
+};
+
 export type TaxpayerProfile = {
   taxpayerId: string;
   kraPin: string;

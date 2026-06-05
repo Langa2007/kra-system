@@ -50,6 +50,7 @@ import {
   getCaseDetail,
   getCases,
   getDataSources,
+  getGovernmentIntegrations,
   getIngestionJobs,
   getNotificationTemplates,
   getNotifications,
@@ -86,6 +87,7 @@ import {
   demoCases,
   demoDataSources,
   demoGraph,
+  demoGovernmentIntegrations,
   demoIngestionJobs,
   demoNotificationTemplates,
   demoNotifications,
@@ -112,6 +114,7 @@ import type {
   CaseDetail,
   CaseRecord,
   DataSource,
+  GovernmentIntegrationReadiness,
   GraphEdge,
   IngestionJob,
   ModelPrediction,
@@ -146,6 +149,7 @@ type ViewKey =
   | "ai-scoring"
   | "reports"
   | "pilot"
+  | "integrations"
   | "ingestion"
   | "rules"
   | "governance";
@@ -161,6 +165,7 @@ const navItems: Array<{ key: ViewKey; label: string; icon: typeof Activity }> = 
   { icon: BrainCircuit, key: "ai-scoring", label: "AI Scoring" },
   { icon: FileText, key: "reports", label: "Executive Analytics" },
   { icon: Gavel, key: "pilot", label: "Pilot Readiness" },
+  { icon: Database, key: "integrations", label: "Integrations" },
   { icon: Database, key: "ingestion", label: "Ingestion" },
   { icon: Settings2, key: "rules", label: "Rules" },
   { icon: ShieldCheck, key: "governance", label: "Governance" },
@@ -375,6 +380,12 @@ export function DashboardApp() {
     token,
     getPilotPackage,
     demoPilotPackage,
+  );
+  const governmentIntegrationsQuery = useAuthedQuery(
+    ["government-integrations", token],
+    token,
+    getGovernmentIntegrations,
+    demoGovernmentIntegrations,
   );
   const liveCaseSelected = Boolean(
     selectedCaseId && casesQuery.liveData?.some((record) => record.id === selectedCaseId),
@@ -1000,6 +1011,10 @@ export function DashboardApp() {
               }}
               packageData={pilotPackageQuery.data}
             />
+          ) : null}
+
+          {activeView === "integrations" ? (
+            <GovernmentIntegrationsView readiness={governmentIntegrationsQuery.data} />
           ) : null}
 
           {activeView === "ingestion" ? (
@@ -3140,6 +3155,152 @@ function AiScoringView({
           ) : null}
         </div>
       </Section>
+    </div>
+  );
+}
+
+function GovernmentIntegrationsView({ readiness }: { readiness: GovernmentIntegrationReadiness }) {
+  return (
+    <div className="space-y-5">
+      <Section title="Government Integrations">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricLine label="Phase" value={readiness.phase} />
+          <MetricLine label="Active sources" value={readiness.activeSources.toLocaleString()} />
+          <MetricLine
+            label="Schema mappings"
+            value={readiness.schemaMappingCount.toLocaleString()}
+          />
+          <MetricLine label="Late sources" value={readiness.lateSources.toLocaleString()} />
+          <MetricLine
+            label="Controlled retries"
+            value={readiness.controlledRetryErrors.toLocaleString()}
+          />
+        </div>
+      </Section>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        {readiness.adapterTemplates.map((template) => (
+          <Section key={template.adapterType} title={template.label}>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Badge value={template.adapterType} />
+                <Badge value={template.ingestionMethod} />
+              </div>
+              <p className="text-sm leading-6 text-gray-700">{template.approvedChannel}</p>
+              <div className="grid gap-2">
+                {template.requiredControls.map((control) => (
+                  <div
+                    className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-paper px-3 text-sm font-semibold"
+                    key={control}
+                  >
+                    <ShieldCheck size={16} aria-hidden="true" />
+                    {control}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Section>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        <Section title="Source Freshness">
+          <div className="overflow-hidden rounded-md border border-line">
+            <table className="min-w-full divide-y divide-line text-sm">
+              <thead className="bg-paper text-left text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Last Success</th>
+                  <th className="px-4 py-3">Alert</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line bg-white">
+                {readiness.freshness.map((source) => (
+                  <tr key={source.dataSourceCode}>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold">{source.dataSourceCode}</div>
+                      <div className="text-xs text-gray-500">{source.dataSourceName}</div>
+                    </td>
+                    <td className="px-4 py-3">{source.ingestionMethod}</td>
+                    <td className="px-4 py-3">{source.integrationStatus}</td>
+                    <td className="px-4 py-3">
+                      {source.lastSuccessfulIngestionAt
+                        ? shortDate(source.lastSuccessfulIngestionAt)
+                        : "No success yet"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge value={source.late ? "LATE" : source.alertLevel} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        <Section title="Integration Errors">
+          <div className="grid gap-3">
+            {readiness.integrationErrors.length ? (
+              readiness.integrationErrors.map((error) => (
+                <article className="rounded-md border border-line bg-white p-3" key={error.jobId}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold">{error.dataSourceCode}</h3>
+                    <Badge value={error.retryControlled ? "CONTROLLED RETRY" : error.status} />
+                  </div>
+                  <p className="mt-2 text-sm text-gray-700">
+                    {error.errorSummary ?? "Integration error awaiting review."}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-gray-500">
+                    Attempt {error.retryCount} of {error.maxRetries}
+                    {error.nextRetryAt ? ` / next ${shortDate(error.nextRetryAt)}` : ""}
+                  </p>
+                </article>
+              ))
+            ) : (
+              <EmptyState label="No integration errors are open." />
+            )}
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Section title="Schema Mappings">
+          <div className="grid gap-3">
+            {readiness.schemaMappings.map((mapping) => (
+              <article className="rounded-md border border-line bg-white p-3" key={mapping.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">{mapping.targetEntity}</h3>
+                  <Badge value={mapping.dataSourceCode} />
+                </div>
+                <p className="mt-2 break-words text-xs font-semibold text-gray-500">
+                  {JSON.stringify(mapping.mappingConfig)}
+                </p>
+              </article>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Agreement Controls">
+          <div className="grid gap-3">
+            {readiness.dataProcessingAgreementSections.map((section) => (
+              <div className="rounded-md border border-line bg-white p-3 text-sm" key={section}>
+                {section}
+              </div>
+            ))}
+            {readiness.securityControls.map((control) => (
+              <div
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line bg-paper px-3 text-sm font-semibold"
+                key={control}
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
+                {control}
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }
