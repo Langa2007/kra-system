@@ -45,6 +45,7 @@ class NotificationIntegrationTest extends PostgresIntegrationTest {
         jdbcTemplate.update("DELETE FROM case_events");
         jdbcTemplate.update("DELETE FROM cases");
         jdbcTemplate.update("DELETE FROM model_predictions");
+        jdbcTemplate.update("DELETE FROM reconciliation_results");
         jdbcTemplate.update("DELETE FROM risk_scores");
         jdbcTemplate.update("DELETE FROM tax_gap_estimates");
         jdbcTemplate.update("DELETE FROM risk_signals");
